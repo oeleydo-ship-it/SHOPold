@@ -8,6 +8,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
@@ -88,17 +89,23 @@ class DashboardController extends Controller
         $vendor->total_earnings = $vendor->calculated_total_earnings;
         $vendor->balance = $vendor->calculated_balance;
 
-        return view('vendor.dashboard', compact(
-            'vendor',
-            'totalProducts',
-            'activeProducts',
-            'thisMonthSales',
-            'salesGrowth',
-            'recentOrders',
-            'topProducts',
-            'chartData',
-            'pendingOrders'
-        ));
+        return Inertia::render('Vendor/Dashboard', [
+            'vendor' => ['status' => $vendor->status, 'store_name' => $vendor->store_name],
+            'stats' => [
+                'month_sales' => format_currency($thisMonthSales), 'growth' => round((float) $salesGrowth, 1),
+                'balance' => format_currency($vendor->balance), 'earnings' => format_currency($vendor->total_earnings),
+                'total_products' => $totalProducts, 'active_products' => $activeProducts, 'pending_orders' => $pendingOrders,
+            ],
+            'chart' => collect($chartData)->map(fn ($d) => ['date' => $d['date'], 'value' => (float) $d['sales'], 'label' => format_currency($d['sales'])])->values(),
+            'recentOrders' => $recentOrders->map(fn ($o) => [
+                'id' => $o->id, 'number' => $o->order_number, 'customer' => $o->user?->name ?? $o->shipping_name ?? 'Guest',
+                'items' => $o->items->sum('quantity'), 'total' => format_currency($o->items->sum('total')),
+                'status' => $o->status, 'date' => $o->created_at?->format('M d, Y'),
+            ])->values(),
+            'topProducts' => $topProducts->map(fn ($p) => [
+                'id' => $p->id, 'name' => $p->name, 'image' => $p->image_url, 'sold' => (int) $p->order_items_count, 'is_active' => (bool) $p->is_active,
+            ])->values(),
+        ]);
     }
 
     public function register()
@@ -106,11 +113,19 @@ class DashboardController extends Controller
         if (Auth::user()->vendor) {
             return redirect()->route('vendor.dashboard');
         }
-        return view('vendor.register');
+        return Inertia::render('Vendor/Register', [
+            'commission' => (float) setting('vendor.default_commission', 10),
+            'email' => Auth::user()->email,
+        ]);
     }
 
     public function storeRegistration(Request $request)
     {
+        // One store per account (asked of the database, not a possibly cached relation)
+        if (\App\Models\Vendor::where('user_id', Auth::id())->exists()) {
+            return redirect()->route('vendor.dashboard');
+        }
+
         $request->validate([
             'store_name' => 'required|string|max:255|unique:vendors,store_name',
             'description' => 'nullable|string',
@@ -130,7 +145,13 @@ class DashboardController extends Controller
         ]);
         
         $data['user_id'] = Auth::id();
-        $data['slug'] = \Str::slug($request->store_name);
+        // Store names are unique but their slugs may not be ("A & B" / "A B"), so add a suffix when taken.
+        $base = \Str::slug($request->store_name) ?: 'store';
+        $slug = $base;
+        for ($i = 2; \App\Models\Vendor::where('slug', $slug)->exists(); $i++) {
+            $slug = "{$base}-{$i}";
+        }
+        $data['slug'] = $slug;
         $data['email'] = Auth::user()->email;
         $data['status'] = 'pending';
         $data['commission_rate'] = setting('vendor.default_commission', 10);

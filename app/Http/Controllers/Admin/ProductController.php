@@ -649,7 +649,21 @@ class ProductController extends Controller
         
         $attributes = Attribute::with('values')->orderBy('sort_order')->get();
         
-        return view('admin.products.variations.edit', compact('product', 'variation', 'attributes'));
+        return Inertia::render('Admin/Products/VariationEdit', [
+            'product' => ['id' => $product->id, 'name' => $product->name, 'image' => $product->image_url],
+            'variation' => [
+                'id' => $variation->id, 'sku' => $variation->sku, 'price' => $variation->price, 'sale_price' => $variation->sale_price,
+                'quantity' => (int) $variation->quantity, 'weight' => $variation->weight, 'is_active' => (bool) $variation->is_active,
+                'name' => $variation->variation_name ?? $variation->name,
+                'image' => $variation->image,
+                'image_url' => $variation->image ? asset('storage/' . $variation->image) : null,
+                'values' => $variation->attributeValues->mapWithKeys(fn ($v) => [$v->attribute_id => $v->id]),
+            ],
+            'attributes' => $attributes->map(fn ($a) => [
+                'id' => $a->id, 'name' => $a->name,
+                'values' => $a->values->map(fn ($v) => ['id' => $v->id, 'value' => $v->value])->values(),
+            ])->values(),
+        ]);
     }
 
     /**
@@ -666,16 +680,26 @@ class ProductController extends Controller
             'quantity' => 'integer|min:0',
             'weight' => 'nullable|numeric|min:0',
             'is_active' => 'boolean',
-            'image' => 'nullable',
+            // an uploaded file, or a path picked from the media library (relative to the public disk, no "..")
+            'image' => ['nullable', function ($attr, $value, $fail) use ($request) {
+                if ($request->hasFile('image')) {
+                    if (!$request->file('image')->isValid() || !str_starts_with((string) $request->file('image')->getMimeType(), 'image/')) {
+                        $fail('The image must be an image file.');
+                    }
+                } elseif (!is_string($value) || !preg_match('#^[A-Za-z0-9_\-][A-Za-z0-9_\-./]*$#', $value) || str_contains($value, '..')) {
+                    $fail('Pick the image from the media library.');
+                }
+            }],
+            'remove_image' => 'nullable|boolean',
             'attribute_values' => 'nullable|array',
         ]);
 
         $updateData = [
             'sku' => $validated['sku'],
-            'price' => $validated['price'] ?: null,
-            'sale_price' => $validated['sale_price'] ?: null,
+            'price' => ($validated['price'] ?? null) ?: null,
+            'sale_price' => ($validated['sale_price'] ?? null) ?: null,
             'quantity' => $validated['quantity'] ?? 0,
-            'weight' => $validated['weight'] ?: null,
+            'weight' => ($validated['weight'] ?? null) ?: null,
             'is_active' => $request->boolean('is_active', true),
         ];
 
@@ -688,6 +712,8 @@ class ProductController extends Controller
             $updateData['image'] = $request->file('image')->store('products/variations', 'public');
         } elseif ($request->filled('image') && is_string($request->image)) {
             $updateData['image'] = $request->image;
+        } elseif ($request->boolean('remove_image')) {
+            $updateData['image'] = null; // media-library files are shared, so only the link is removed
         }
 
         $variation->update($updateData);

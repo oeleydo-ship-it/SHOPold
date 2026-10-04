@@ -35,3 +35,30 @@ uses(Tests\TestCase::class)->in('Unit');
 | global functions to help you to reduce the number of lines of code in your test files.
 |
 */
+
+/** An admin user with the given role: super_admin, manager or editor. */
+function adminUser(string $role = 'super_admin'): \App\Models\User
+{
+    return \App\Models\User::factory()->admin($role)->create();
+}
+
+/** A regular, verified customer. */
+function customer(): \App\Models\User
+{
+    return \App\Models\User::factory()->create();
+}
+
+/** Switch a module (Admin > Modules) on or off. */
+function module(string $key, bool $on): void
+{
+    \App\Models\Setting::set(\App\Support\Modules::get($key)['toggle'], $on, 'boolean', 'features');
+}
+
+/** A vendor store (approved by default) owned by a fresh customer account. */
+function makeVendor(string $status = 'approved'): \App\Models\Vendor
+{
+    $user = customer();
+    $slug = 'store-' . $user->id;
+
+    return \App\Models\Vendor::create(['user_id' => $user->id, 'store_name' => "Store {$user->id}", 'slug' => $slug, 'email' => "{$slug}@example.test", 'status' => $status, 'commission_rate' => 10]);
+}

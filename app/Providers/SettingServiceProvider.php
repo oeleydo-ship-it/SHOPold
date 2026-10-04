@@ -51,14 +51,22 @@ class SettingServiceProvider extends ServiceProvider
             return "<?php echo ai_translate({$expression}); ?>";
         });
 
-        if ($this->app->runningInConsole() && !Schema::hasTable('settings')) {
-            return;
-        }
+        // During installation / the first migration there is no settings table yet. Mail is configured only
+        // when it exists; the view composer below is always registered and checks again when a page renders
+        // (so it also works when the table is created later in the same process, e.g. in tests).
+        $settingsTableReady = !$this->app->runningInConsole() || Schema::hasTable('settings');
 
         try {
-            $this->configureMailSettings();
+            if ($settingsTableReady) {
+                $this->configureMailSettings();
+            }
 
             View::composer(['layouts.app', 'home', 'shop.*', 'cart.*', 'checkout.*', 'account.*', 'auth.*', 'blog.*', 'page.*'], function ($view) {
+                static $ready = null;
+                if (!($ready ??= Schema::hasTable('settings'))) {
+                    return;
+                }
+
                 // Get available languages - try available_languages_list first
                 $availableLangs = [];
                 $storedList = Setting::get('store.available_languages_list');

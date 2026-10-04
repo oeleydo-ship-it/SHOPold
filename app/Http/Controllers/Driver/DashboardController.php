@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
@@ -16,7 +17,7 @@ class DashboardController extends Controller
         // Get assigned orders
         $assignedOrders = Order::where('driver_id', $driver->id)
             ->whereIn('status', ['processing', 'shipped'])
-            ->with(['user', 'items.product'])
+            ->with(['user', 'items'])
             ->latest()
             ->get();
 
@@ -51,21 +52,19 @@ class DashboardController extends Controller
             ->where('created_at', '>=', now()->startOfWeek())
             ->sum('amount');
 
-        // Get unread notifications count
-        $unreadNotifications = \App\Models\DriverNotification::where('driver_id', $driver->id)
-            ->where('is_read', false)
-            ->count();
-
-        return view('driver.dashboard', compact(
-            'driver',
-            'assignedOrders',
-            'todayDeliveries',
-            'monthDeliveries',
-            'pendingPickups',
-            'todayEarnings',
-            'weekEarnings',
-            'unreadNotifications'
-        ));
+        return Inertia::render('Driver/Dashboard', [
+            'name' => $driver->name,
+            'stats' => [
+                'today_deliveries' => $todayDeliveries,
+                'month_deliveries' => $monthDeliveries,
+                'pending_pickups' => $pendingPickups,
+                'today_earnings' => format_currency($todayEarnings),
+                'week_earnings' => format_currency($weekEarnings),
+                'rating' => $driver->driver_rating !== null ? round((float) $driver->driver_rating, 1) : null,
+                'total_deliveries' => (int) $driver->driver_total_deliveries,
+            ],
+            'orders' => $assignedOrders->map(fn ($o) => OrderController::card($o))->values(),
+        ]);
     }
 
     public function updateStatus(Request $request)

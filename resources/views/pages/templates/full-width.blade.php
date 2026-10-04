@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', $page->getTranslatedAttribute('meta_title') ?? $page->translated_title)
-@section('meta_description', $page->getTranslatedAttribute('meta_description') ?? $page->excerpt)
+@section('title', (string) ($page->getTranslatedAttribute('meta_title') ?? $page->translated_title ?? ''))
+@section('meta_description', (string) ($page->getTranslatedAttribute('meta_description') ?? $page->excerpt ?? '')) {{-- never null: a null value would open a block section --}}
 
 @section('content')
 @include('pages.partials.skin')

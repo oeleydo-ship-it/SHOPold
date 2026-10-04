@@ -2,7 +2,7 @@
     Modern theme footer: newsletter card, brand column with social pills, link columns and a slim bottom bar.
     Uses the same footer settings as every theme (colors, links, socials, toggles, copyright) via App\View\StoreFooter.
 --}}
-@php($ft = \App\View\StoreFooter::data($appSettings))
+@php($ft = \App\View\StoreFooter::data($appSettings ?? []))
 <footer class="mt-auto store-footer relative" style="background-color: {{ $ft['bg'] }}; color: {{ $ft['text'] }};">
     <style>
         .store-footer a { transition: color .15s; }

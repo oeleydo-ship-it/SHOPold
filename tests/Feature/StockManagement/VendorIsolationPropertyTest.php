@@ -112,21 +112,26 @@ test('vendor stock list only contains products belonging to that vendor', functi
         $testVendorData = $vendors[$testVendorIndex];
         
         // Act as the vendor user and access stock management
-        $response = $this->actingAs($testVendorData['user'])
-            ->get(route('vendor.stock.index'));
-        
+        $this->actingAs($testVendorData['user']);
+        $response = $this->inertia('GET', route('vendor.stock.index', [], false));
+
         $response->assertStatus(200);
-        
-        // Get the stock items from the view
-        $stockItems = $response->viewData('stockItems');
-        
+
+        // Get the stock items from the page props (the page is a React page)
+        $stockItems = collect($response->json('props.items.data'));
+        $ownIds = collect($allProducts)
+            ->filter(fn($p) => $p['vendor_id'] === $testVendorData['vendor']->id)
+            ->map(fn($p) => $p['product']->id)
+            ->values()
+            ->all();
+
         // Verify: ALL items in the list belong to this vendor
         foreach ($stockItems as $item) {
-            expect($item->vendor_id)->toBe($testVendorData['vendor']->id,
-                "Stock list contains product with vendor_id {$item->vendor_id}, expected {$testVendorData['vendor']->id}"
+            expect(in_array($item['product_id'], $ownIds, true))->toBeTrue(
+                "Stock list contains product {$item['product_id']} that does not belong to vendor {$testVendorData['vendor']->id}"
             );
         }
-        
+
         // Verify: Count of items matches expected vendor products
         $expectedCount = collect($allProducts)
             ->filter(fn($p) => $p['vendor_id'] === $testVendorData['vendor']->id)

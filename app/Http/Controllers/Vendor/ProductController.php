@@ -13,12 +13,41 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 
 class ProductController extends Controller
 {
     protected function vendor()
     {
         return Auth::user()->vendor;
+    }
+
+    protected function approvalRequired(): bool
+    {
+        return (bool) setting('features.vendor_products_approval', true);
+    }
+
+    /** Choices shared by the create and edit forms. */
+    protected function formOptions(): array
+    {
+        $categories = [];
+        foreach (Category::active()->with(['children' => fn ($q) => $q->where('is_active', true)])->whereNull('parent_id')->orderBy('name')->get() as $c) {
+            $categories[] = ['id' => $c->id, 'name' => $c->name, 'depth' => 0];
+            foreach ($c->children as $child) {
+                $categories[] = ['id' => $child->id, 'name' => $child->name, 'depth' => 1];
+            }
+        }
+
+        return [
+            'categories' => $categories,
+            'brands' => Brand::orderBy('name')->get(['id', 'name']),
+            'attributes' => Attribute::with('values')->orderBy('sort_order')->get()->map(fn ($a) => [
+                'id' => $a->id, 'name' => $a->name,
+                'values' => $a->values->map(fn ($v) => ['id' => $v->id, 'value' => $v->value, 'color' => $a->type === 'color' ? $v->color_code : null])->values(),
+            ])->values(),
+            'approvalRequired' => $this->approvalRequired(),
+            'maxUploadMb' => 500,
+        ];
     }
 
     public function index(Request $request)
@@ -49,19 +78,29 @@ class ProductController extends Controller
             $query->where('product_type', $request->type);
         }
 
-        $products = $query->latest()->paginate(15);
-        $categories = Category::active()->get();
+        $products = $query->latest()->paginate(15)->withQueryString();
+        $categories = Category::active()->get(['id', 'name']);
+        $approval = $this->approvalRequired();
 
-        return view('vendor.products.index', compact('products', 'categories'));
+        return Inertia::render('Vendor/Products/Index', [
+            'products' => $products->through(fn ($p) => [
+                'id' => $p->id, 'name' => $p->name, 'sku' => $p->sku, 'type' => $p->product_type ?? 'simple', 'variations' => (int) $p->variations_count,
+                'image' => $p->image_url, 'category' => $p->category?->name,
+                'price' => format_currency($p->price), 'sale_price' => $p->sale_price ? format_currency($p->sale_price) : null,
+                'stock' => (int) $p->quantity, 'low_stock' => (int) ($p->low_stock_threshold ?? 5),
+                'is_active' => (bool) $p->is_active,
+                'awaiting_approval' => !$p->is_active && $approval,
+                'can_activate' => !$approval, // with approval on, only the store can (re)activate a product
+            ]),
+            'categories' => $categories,
+            'filters' => $request->only(['search', 'status', 'type', 'category']),
+            'approvalRequired' => $approval,
+        ]);
     }
 
     public function create()
     {
-        $categories = Category::active()->with('children')->whereNull('parent_id')->get();
-        $brands = Brand::orderBy('name')->get();
-        $attributes = Attribute::with('values')->orderBy('sort_order')->get();
-
-        return view('vendor.products.create', compact('categories', 'brands', 'attributes'));
+        return Inertia::render('Vendor/Products/Form', $this->formOptions() + ['product' => null]);
     }
 
     public function store(Request $request)
@@ -74,6 +113,8 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'required|string',
             'short_description' => 'nullable|string|max:500',
+            'product_type' => 'nullable|in:simple,variable,digital',
+            'brand_id' => 'nullable|exists:brands,id',
             'category_id' => 'required|exists:categories,id',
             'price' => 'required|numeric|min:0',
             'sale_price' => 'nullable|numeric|min:0',
@@ -131,7 +172,7 @@ class ProductController extends Controller
             'weight' => $request->weight,
             'dimensions' => $request->dimensions,
             'is_active' => !$needsApproval,
-            'is_featured' => $request->boolean('is_featured', false),
+            'is_featured' => false, // featuring products is the store's decision
             'is_virtual' => $isDigital ? true : $request->boolean('is_virtual', false),
             'is_downloadable' => $isDigital,
             'product_type' => $request->product_type ?? 'simple',
@@ -222,7 +263,31 @@ class ProductController extends Controller
         $attributes = Attribute::with('values')->orderBy('sort_order')->get();
         $product->load(['images', 'variations.attributeValues.attribute', 'attributeValues', 'digitalFiles']);
 
-        return view('vendor.products.edit', compact('product', 'categories', 'brands', 'attributes'));
+        unset($categories, $brands, $attributes); // the form options come from formOptions()
+        $product->load(['images', 'digitalFiles', 'attributeValues', 'variations' => fn ($q) => $q->orderBy('sort_order')]);
+        $date = fn ($d) => $d ? \Illuminate\Support\Carbon::parse($d)->format('Y-m-d') : null;
+
+        return Inertia::render('Vendor/Products/Form', $this->formOptions() + ['product' => [
+            'id' => $product->id, 'url' => route('shop.show', $product->slug), 'is_active' => (bool) $product->is_active,
+            'product_type' => $product->product_type ?? 'simple', 'name' => $product->name, 'description' => $product->description,
+            'short_description' => $product->short_description, 'category_id' => $product->category_id, 'brand_id' => $product->brand_id,
+            'price' => $product->price, 'sale_price' => $product->sale_price, 'sale_start_date' => $date($product->sale_start_date), 'sale_end_date' => $date($product->sale_end_date),
+            'cost_price' => $product->cost_price, 'sku' => $product->sku, 'barcode' => $product->barcode, 'quantity' => $product->quantity,
+            'low_stock_threshold' => $product->low_stock_threshold, 'manage_stock' => (bool) ($product->manage_stock ?? true),
+            'weight' => $product->weight, 'dimensions' => $product->dimensions,
+            'meta_title' => $product->meta_title, 'meta_description' => $product->meta_description, 'meta_keywords' => $product->meta_keywords,
+            'features' => array_values(array_filter((array) ($product->features ?? []), fn ($f) => is_array($f))),
+            'attribute_values' => (object) $product->attributeValues->groupBy('attribute_id')->map(fn ($g) => $g->pluck('id')->values())->all(),
+            'images' => $product->images->sortBy('sort_order')->map(fn ($i) => ['id' => $i->id, 'url' => $i->image_url, 'primary' => (bool) $i->is_primary || $i->image === $product->image])->values(),
+            'digital_files' => $product->digitalFiles->map(fn ($d) => [
+                'id' => $d->id, 'name' => $d->name, 'file_type' => $d->file_type, 'file_name' => $d->file_name, 'file_url' => $d->file_url,
+                'size' => $d->file_size ? $d->formatted_size : null, 'download_limit' => $d->download_limit, 'download_expiry_days' => $d->download_expiry_days,
+            ])->values(),
+            'variations' => $product->variations->map(fn ($v) => [
+                'id' => $v->id, 'sku' => $v->sku, 'name' => $v->variation_name ?? $v->name, 'quantity' => (int) $v->quantity, 'is_active' => (bool) $v->is_active,
+                'price' => $v->price !== null ? format_currency($v->price) : null,
+            ])->values(),
+        ]]);
     }
 
     public function update(Request $request, Product $product)
@@ -237,6 +302,7 @@ class ProductController extends Controller
             'description' => 'required|string',
             'short_description' => 'nullable|string|max:500',
             'product_type' => 'nullable|in:simple,variable,digital',
+            'brand_id' => 'nullable|exists:brands,id',
             'category_id' => 'required|exists:categories,id',
             'price' => 'required|numeric|min:0',
             'sale_price' => 'nullable|numeric|min:0',
@@ -292,7 +358,6 @@ class ProductController extends Controller
             'manage_stock' => $isDigital ? false : $request->boolean('manage_stock', true),
             'weight' => $request->weight,
             'dimensions' => $request->dimensions,
-            'is_featured' => $request->boolean('is_featured', false),
             'is_virtual' => $isDigital ? true : $request->boolean('is_virtual', false),
             'product_type' => $request->input('product_type', 'simple'),
             'meta_title' => $request->meta_title,
@@ -468,11 +533,17 @@ class ProductController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        // With product approval switched on, publishing is the store's decision: a vendor can hide a product
+        // but not make it visible again (otherwise the approval step could be skipped).
+        if (!$product->is_active && $this->approvalRequired()) {
+            return back()->with('error', 'This product needs approval from the store before it can be shown.');
+        }
+
         $product->update([
             'is_active' => !$product->is_active
         ]);
 
-        return back()->with('success', 'Product status updated!');
+        return back()->with('success', $product->is_active ? 'Product is now visible in the store.' : 'Product hidden from the store.');
     }
 
     /**
@@ -547,7 +618,16 @@ class ProductController extends Controller
         
         $attributes = Attribute::with('values')->orderBy('sort_order')->get();
         
-        return view('vendor.products.variations.edit', compact('product', 'variation', 'attributes'));
+        return Inertia::render('Vendor/Products/VariationEdit', [
+            'product' => ['id' => $product->id, 'name' => $product->name],
+            'variation' => [
+                'id' => $variation->id, 'sku' => $variation->sku, 'price' => $variation->price, 'sale_price' => $variation->sale_price,
+                'quantity' => (int) $variation->quantity, 'weight' => $variation->weight, 'is_active' => (bool) $variation->is_active,
+                'name' => $variation->variation_name ?? $variation->name,
+                'values' => $variation->attributeValues->mapWithKeys(fn ($v) => [$v->attribute_id => $v->id]),
+            ],
+            'attributes' => $attributes->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'values' => $a->values->map(fn ($v) => ['id' => $v->id, 'value' => $v->value])->values()])->values(),
+        ]);
     }
 
     /**
@@ -574,8 +654,8 @@ class ProductController extends Controller
 
         $variation->update([
             'sku' => $validated['sku'],
-            'price' => $validated['price'] ?: null,
-            'sale_price' => $validated['sale_price'] ?: null,
+            'price' => ($validated['price'] ?? null) ?: null,
+            'sale_price' => ($validated['sale_price'] ?? null) ?: null,
             'quantity' => $validated['quantity'] ?? 0,
             'weight' => $validated['weight'] ?? null,
             'is_active' => $request->boolean('is_active', true),

@@ -10,6 +10,7 @@ use App\Models\Category;
 use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class StockController extends Controller
 {
@@ -42,12 +43,26 @@ class StockController extends Controller
         // Get filter options
         $categories = Category::orderBy('name')->get();
         
-        return view('vendor.stock.index', compact(
-            'stockItems',
-            'statistics',
-            'categories',
-            'threshold'
-        ));
+        return Inertia::render('Vendor/Stock/Index', [
+            'items' => $stockItems->through(fn ($i) => [
+                'key' => $i->type . '-' . $i->id,
+                'id' => $i->id,
+                'type' => $i->type,
+                'product_id' => $i->product_id,
+                'name' => $i->name,
+                'sku' => $i->sku,
+                'quantity' => (int) $i->quantity,
+                'status' => $i->stock_status,
+                'category' => $i->category_name,
+                'image' => $i->is_variation ? null : $i->image_url,
+                'is_variation' => $i->is_variation,
+                'product_type' => $i->product_type,
+            ]),
+            'statistics' => $statistics,
+            'categories' => $categories->map->only(['id', 'name'])->values(),
+            'filters' => $request->only('search', 'status', 'category_id'),
+            'threshold' => $threshold,
+        ]);
     }
 
 
@@ -119,17 +134,27 @@ class StockController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
-        if (request()->wantsJson()) {
-            return response()->json([
-                'product' => [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                ],
-                'logs' => $logs,
-            ]);
-        }
-
-        return view('vendor.stock.history', compact('product', 'logs'));
+        // Only names leave this page: the log's user may be a store admin, whose account details are not the vendor's business.
+        return Inertia::render('Vendor/Stock/History', [
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'quantity' => (int) $product->quantity,
+                'image' => $product->image ? $product->image_url : null,
+            ],
+            'logs' => $logs->through(fn ($l) => [
+                'id' => $l->id,
+                'date' => $l->created_at->format('M d, Y H:i'),
+                'user' => $l->user?->name ?? 'System',
+                'type' => $l->type,
+                'variation' => $l->variation ? ($l->variation->name ?: $l->variation->sku) : null,
+                'before' => $l->quantity_before,
+                'change' => $l->quantity_change,
+                'after' => $l->quantity_after,
+                'note' => $l->note,
+            ]),
+        ]);
     }
 
 
@@ -138,7 +163,7 @@ class StockController extends Controller
      */
     protected function buildStockQuery(Request $request, int $threshold, int $vendorId)
     {
-        $perPage = $request->input('per_page', 25);
+        $perPage = min(100, max(5, (int) $request->input('per_page', 25)));
         
         // Get products with their variations (filtered to vendor's products)
         $productsQuery = Product::query()

@@ -4,7 +4,7 @@
     Data (colors, links, socials, copyright...) comes from App\View\StoreFooter so every theme reads the same settings.
     Layouts: default (4 columns), minimal (centered), expanded (newsletter band + 4 columns).
 --}}
-@php($ft = \App\View\StoreFooter::data($appSettings))
+@php($ft = \App\View\StoreFooter::data($appSettings ?? []))
 <footer class="mt-auto store-footer" style="background-color: {{ $ft['bg'] }}; color: {{ $ft['text'] }};">
     <style>
         .store-footer a { transition: color .15s; }

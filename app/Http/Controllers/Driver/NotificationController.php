@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DriverNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class NotificationController extends Controller
 {
@@ -16,12 +17,23 @@ class NotificationController extends Controller
             ->latest()
             ->paginate(30);
 
-        return view('driver.notifications.index', compact('notifications'));
+        return Inertia::render('Driver/Notifications', [
+            'notifications' => $notifications->through(fn ($n) => [
+                'id' => $n->id,
+                'type' => $n->type,
+                'title' => $n->title,
+                'message' => $n->message,
+                'read' => (bool) $n->is_read,
+                'order_id' => $n->order_id,
+                'order' => $n->order?->order_number,
+                'date' => $n->created_at->diffForHumans(),
+            ]),
+        ]);
     }
 
     public function markAsRead(DriverNotification $notification)
     {
-        if ($notification->driver_id !== Auth::id()) {
+        if ((int) $notification->driver_id !== (int) Auth::id()) {
             abort(403);
         }
 

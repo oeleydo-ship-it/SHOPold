@@ -46,7 +46,7 @@ Most pages are built from small shared **blocks**. A theme usually rearranges th
 
 | Page | Theme page layout | Shared blocks you can include or replace |
 |---|---|---|
-| Header / footer | `partials/header.blade.php`, `partials/footer.blade.php` | `partials/header/base` (the full header); footer data from `App\View\StoreFooter::data($appSettings)` |
+| Header / footer | `partials/header.blade.php`, `partials/footer.blade.php` | `partials/header/base` (the full header); footer data from `App\View\StoreFooter::data($appSettings ?? [])` |
 | Homepage | `home/partials/skin.blade.php` (styles) | `home/sections/*` (hero, features, categories, featured, flash_deals, top_rated, two_column_banners, promo, arrivals, blog, newsletter) |
 | Product card | `components/product-card.blade.php` | |
 | Shop | `shop/index.blade.php` | `shop/listing/*` (styles, hero, active-filters, mobile-filters, sidebar, sort-bar, products); wrap them in `<x-shop-state>` |

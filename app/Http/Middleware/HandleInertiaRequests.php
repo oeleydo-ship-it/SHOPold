@@ -41,6 +41,19 @@ class HandleInertiaRequests extends Middleware
                 'localization' => (bool) setting('features.localization_enabled', true),
             ],
             'modules' => collect(\App\Support\Modules::all())->map(fn ($m, $k) => \App\Support\Modules::enabled($k)),
+            // vendor portal: store name / status / pending orders for the sidebar (only for vendor users)
+            'vendor' => fn () => ($v = $user?->vendor) ? [
+                'id' => $v->id, 'store_name' => $v->store_name, 'slug' => $v->slug, 'status' => $v->status,
+                'pending_orders' => $v->status === 'approved'
+                    ? \App\Models\Order::where('status', 'pending')->whereHas('items.product', fn ($q) => $q->where('vendor_id', $v->id))->count()
+                    : 0,
+            ] : null,
+            // driver portal: availability and unread notifications for the header (only on /driver pages)
+            'driver' => fn () => ($user?->is_driver && $request->is('driver', 'driver/*')) ? [
+                'status' => $user->driver_status ?? 'offline',
+                'unread' => \App\Models\DriverNotification::where('driver_id', $user->id)->where('is_read', false)->count(),
+                'active_orders' => \App\Models\Order::where('driver_id', $user->id)->whereIn('status', ['processing', 'shipped'])->count(),
+            ] : null,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

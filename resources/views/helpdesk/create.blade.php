@@ -1,15 +1,19 @@
-@extends('layouts.app')
+@extends('layouts.account')
 
+{{-- New support ticket form, inside the themed account shell. --}}
 @section('title', 'Create Support Ticket')
 
-@section('content')
-<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-    <div class="flex items-center gap-4 mb-6">
-        <a href="{{ route('helpdesk.index') }}" class="text-gray-600 hover:text-gray-800">
-            <i class="fas fa-arrow-left"></i>
-        </a>
-        <h1 class="text-2xl md:text-3xl font-bold">Create Support Ticket</h1>
-    </div>
+@section('account_heading', 'New Support Ticket')
+
+@section('account_actions')
+    <a href="{{ route('helpdesk.index') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+        <i class="fas fa-arrow-left mr-2" aria-hidden="true"></i>All tickets
+    </a>
+@endsection
+
+@section('account_content_class', 'max-w-3xl')
+
+@section('account_content')
 
     @if($errors->any())
     <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
@@ -88,5 +92,4 @@
             </button>
         </div>
     </form>
-</div>
 @endsection

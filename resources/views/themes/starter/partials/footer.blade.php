@@ -2,7 +2,7 @@
     Starter theme footer: plain three-column layout with a top rule, text-only social links and a one-line bottom bar.
     Uses the same footer settings as every theme (colors, links, socials, toggles, copyright) via App\View\StoreFooter.
 --}}
-@php($ft = \App\View\StoreFooter::data($appSettings))
+@php($ft = \App\View\StoreFooter::data($appSettings ?? []))
 <footer class="mt-auto store-footer border-t-4" style="background-color: {{ $ft['bg'] }}; color: {{ $ft['text'] }}; border-color: var(--color-primary, #059669);">
     <style>
         .store-footer a { text-decoration: none; }

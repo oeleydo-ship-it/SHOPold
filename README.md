@@ -1,6 +1,6 @@
 # Laravel Shop - E-Commerce Application
 
-A comprehensive e-commerce application built with Laravel 12, featuring a beautiful Tailwind CSS frontend and a full-featured admin dashboard.
+A comprehensive e-commerce application built with Laravel 12: a themeable Blade + Tailwind storefront, and React (Inertia) apps for the admin, vendor and driver portals.
 
 ## Features
 
@@ -14,21 +14,30 @@ A comprehensive e-commerce application built with Laravel 12, featuring a beauti
 - ⭐ Product reviews and ratings
 - 🎫 Coupon/discount code support
 
-### Admin Dashboard
+- 🎨 Multiple storefront themes (default, modern, starter) with a live customizer; each theme can override any page
+- 🏪 Vendor store pages and a customer helpdesk, both following the active theme
+- ✉️ Branded emails (store logo, name and the active theme's colour)
+
+### Admin Dashboard (React)
 - 📊 Dashboard with sales analytics and charts
-- 📦 Product management (CRUD)
-- 📁 Category management
-- 🛒 Order management with status updates
-- 👥 User management
-- 🎫 Coupon management
-- ⭐ Review moderation
+- 📦 Products, variations, digital files, categories, brands, attributes, stock
+- 🛒 Orders, invoices (screen, print and PDF), shipping labels
+- 👥 Users with roles: super admin, manager, editor (enforced on every /admin route)
+- 🧩 Modules (turn features such as blog, vendors, drivers, loyalty on or off) and themes
+- 🎫 Coupons, reviews, blog, pages, media library, helpdesk, reports, settings
+
+### Vendor Portal (React, `/vendor`)
+- Registration and approval, dashboard, products and variations, orders and fulfilment, stock, payouts, store settings
+
+### Driver Portal (React, mobile-first, `/driver`)
+- Deliveries with navigation/call buttons, pick-up and proof of delivery (photo + signature), earnings, notifications, schedule
 
 ## Requirements
 
 - PHP 8.2+
 - MySQL 5.7+ or MariaDB 10.3+
 - Composer
-- Node.js & NPM (optional, for asset compilation)
+- Node.js 20+ & NPM (builds the admin, vendor and driver apps)
 
 ## Installation
 
@@ -71,12 +80,18 @@ A comprehensive e-commerce application built with Laravel 12, featuring a beauti
    php artisan storage:link
    ```
 
-8. **Start the development server**
+8. **Build the front-end apps** (or run `npm run dev` while developing)
+   ```bash
+   npm install
+   npm run build
+   ```
+
+9. **Start the development server**
    ```bash
    php artisan serve
    ```
 
-9. **Access the application**
+10. **Access the application**
    - Frontend: http://localhost:8000
    - Admin: http://localhost:8000/admin
 
@@ -89,6 +104,14 @@ A comprehensive e-commerce application built with Laravel 12, featuring a beauti
 ### Customer Account
 - Email: `customer@shop.com`
 - Password: `password`
+
+## Tests
+
+Tests use Pest and run against a separate MySQL database, `shoping_test` (set in `phpunit.xml`; never point it at the live database). Create it once, then:
+
+```bash
+php vendor/bin/pest
+```
 
 ## Project Structure
 
@@ -107,10 +130,15 @@ shop/
 │   └── seeders/                 # Database seeders
 ├── resources/
 │   └── views/
-│       ├── admin/               # Admin views
-│       ├── auth/                # Auth views
-│       ├── layouts/             # Layout templates
-│       └── ...                  # Frontend views
+│       ├── admin/               # Print/PDF documents (invoice, shipping label)
+│       ├── emails/              # Branded emails (layouts/branded + partials)
+│       ├── themes/<slug>/       # Storefront theme overrides + theme.json
+│       ├── layouts/             # Storefront layout templates
+│       └── ...                  # Shared storefront views
+│   └── js/
+│       ├── Pages/Admin|Vendor|Driver/   # React pages (Inertia)
+│       ├── Layouts/             # AdminLayout, PortalLayout (vendor/driver)
+│       └── Components/          # Shared UI
 └── routes/
     └── web.php                  # Web routes
 ```
@@ -123,10 +151,10 @@ shop/
 ## Technologies Used
 
 - **Backend**: Laravel 12
-- **Frontend**: Tailwind CSS (via CDN)
-- **Icons**: Font Awesome 6
-- **JavaScript**: Alpine.js
-- **Charts**: Chart.js (Admin dashboard)
+- **Storefront**: Blade, Tailwind CSS (via CDN), Alpine.js, Font Awesome 6
+- **Admin / vendor / driver**: Inertia + React 19, Vite, Tailwind CSS 4, lucide icons
+- **PDF**: barryvdh/laravel-dompdf
+- **Tests**: Pest
 
 ## License
 

@@ -6,24 +6,58 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 
 class SettingController extends Controller
 {
+    /** Smallest payout a vendor can request. */
+    protected const MIN_PAYOUT = 50;
+
     protected function vendor()
     {
         return Auth::user()->vendor;
     }
 
+    /** Earnings minus completed/processing payouts minus requests still waiting, so a balance can't be requested twice. */
+    protected function requestable($vendor): float
+    {
+        return max(0, round($vendor->calculated_balance - $vendor->payouts()->where('status', 'pending')->sum('amount'), 2));
+    }
+
     public function index()
     {
         $vendor = $this->vendor();
-        
-        // Calculate real-time earnings
-        $vendor->total_sales = $vendor->calculated_total_sales;
-        $vendor->total_earnings = $vendor->calculated_total_earnings;
-        $vendor->balance = $vendor->calculated_balance;
-        
-        return view('vendor.settings.index', compact('vendor'));
+
+        return Inertia::render('Vendor/Settings/Store', [
+            'store' => [
+                'store_name' => $vendor->store_name,
+                'slug' => $vendor->slug,
+                'url' => route('shop.vendor', $vendor->slug),
+                'description' => $vendor->description,
+                'phone' => $vendor->phone,
+                'email' => $vendor->email,
+                'address' => $vendor->address,
+                'city' => $vendor->city,
+                'state' => $vendor->state,
+                'country' => $vendor->country,
+                'zip_code' => $vendor->zip_code,
+                'logo' => $vendor->logo ? $vendor->logo_url : null,
+                'banner' => $vendor->banner ? asset('storage/' . $vendor->banner) : null,
+                'social_links' => [
+                    'facebook' => $vendor->social_links['facebook'] ?? '',
+                    'twitter' => $vendor->social_links['twitter'] ?? '',
+                    'instagram' => $vendor->social_links['instagram'] ?? '',
+                ],
+                'status' => $vendor->status,
+                'commission_rate' => (float) $vendor->commission_rate,
+                'joined' => $vendor->created_at?->format('M d, Y'),
+            ],
+            'summary' => [
+                'sales' => format_currency($vendor->calculated_total_sales),
+                'earnings' => format_currency($vendor->calculated_total_earnings),
+                'balance' => format_currency($vendor->calculated_balance),
+            ],
+        ]);
     }
 
     public function update(Request $request)
@@ -32,14 +66,14 @@ class SettingController extends Controller
 
         $request->validate([
             'store_name' => 'required|string|max:255|unique:vendors,store_name,' . $vendor->id,
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:5000',
             'phone' => 'required|string|max:20',
             'email' => 'required|email',
-            'address' => 'required|string',
-            'city' => 'required|string',
-            'state' => 'nullable|string',
-            'country' => 'required|string',
-            'zip_code' => 'nullable|string',
+            'address' => 'required|string|max:500',
+            'city' => 'required|string|max:255',
+            'state' => 'nullable|string|max:255',
+            'country' => 'required|string|max:255',
+            'zip_code' => 'nullable|string|max:20',
             'logo' => 'nullable|image|max:2048',
             'banner' => 'nullable|image|max:4096',
             'social_links.facebook' => 'nullable|url',
@@ -53,7 +87,7 @@ class SettingController extends Controller
         ]);
 
         if ($request->has('social_links')) {
-            $data['social_links'] = array_filter($request->social_links);
+            $data['social_links'] = array_filter(array_intersect_key((array) $request->social_links, array_flip(['facebook', 'twitter', 'instagram'])));
         }
 
         if ($request->hasFile('logo')) {
@@ -79,19 +113,48 @@ class SettingController extends Controller
     {
         $vendor = $this->vendor();
         $payouts = $vendor->payouts()->latest()->paginate(15);
-        
-        // Calculate real-time earnings
-        $vendor->total_sales = $vendor->calculated_total_sales;
-        $vendor->total_earnings = $vendor->calculated_total_earnings;
-        $vendor->balance = $vendor->calculated_balance;
-        
-        return view('vendor.settings.payouts', compact('vendor', 'payouts'));
+        $method = $vendor->payment_info['preferred_method'] ?? null;
+
+        return Inertia::render('Vendor/Payouts', [
+            'summary' => [
+                'earnings' => format_currency($vendor->calculated_total_earnings),
+                'balance' => format_currency($vendor->calculated_balance),
+                'pending' => format_currency($vendor->pending_payout),
+                'paid' => format_currency($vendor->total_paid_out),
+            ],
+            'requestable' => $this->requestable($vendor),
+            'requestableLabel' => format_currency($this->requestable($vendor)),
+            'minimum' => self::MIN_PAYOUT,
+            'minimumLabel' => format_currency(self::MIN_PAYOUT),
+            'method' => $method ? ucwords(str_replace('_', ' ', $method)) : null,
+            'payouts' => $payouts->through(fn ($p) => [
+                'id' => $p->id,
+                'amount' => format_currency($p->amount),
+                'method' => ucwords(str_replace('_', ' ', $p->payment_method)),
+                'status' => $p->status,
+                'reference' => $p->transaction_id,
+                'date' => $p->created_at->format('M d, Y'),
+                'processed' => $p->processed_at ? \Illuminate\Support\Carbon::parse($p->processed_at)->format('M d, Y') : null,
+            ]),
+        ]);
     }
 
     public function paymentSettings()
     {
-        $vendor = $this->vendor();
-        return view('vendor.settings.payment', compact('vendor'));
+        $info = $this->vendor()->payment_info ?? [];
+
+        return Inertia::render('Vendor/PaymentSettings', [
+            'info' => [
+                'preferred_method' => $info['preferred_method'] ?? '',
+                'bank_name' => $info['bank']['name'] ?? '',
+                'bank_account_name' => $info['bank']['account_name'] ?? '',
+                'bank_account_number' => $info['bank']['account_number'] ?? '',
+                'bank_routing_number' => $info['bank']['routing_number'] ?? '',
+                'bank_swift_code' => $info['bank']['swift_code'] ?? '',
+                'paypal_email' => $info['paypal']['email'] ?? '',
+                'stripe_account_id' => $info['stripe']['account_id'] ?? '',
+            ],
+        ]);
     }
 
     public function updatePaymentSettings(Request $request)
@@ -100,13 +163,13 @@ class SettingController extends Controller
 
         $request->validate([
             'preferred_method' => 'required|in:bank_transfer,paypal,stripe',
-            'bank_name' => 'nullable|string|max:255',
-            'bank_account_name' => 'nullable|string|max:255',
-            'bank_account_number' => 'nullable|string|max:50',
+            'bank_name' => 'nullable|required_if:preferred_method,bank_transfer|string|max:255',
+            'bank_account_name' => 'nullable|required_if:preferred_method,bank_transfer|string|max:255',
+            'bank_account_number' => 'nullable|required_if:preferred_method,bank_transfer|string|max:50',
             'bank_routing_number' => 'nullable|string|max:50',
             'bank_swift_code' => 'nullable|string|max:20',
-            'paypal_email' => 'nullable|email|max:255',
-            'stripe_account_id' => 'nullable|string|max:255',
+            'paypal_email' => 'nullable|required_if:preferred_method,paypal|email|max:255',
+            'stripe_account_id' => 'nullable|required_if:preferred_method,stripe|string|max:255',
         ]);
 
         $paymentInfo = [
@@ -134,11 +197,6 @@ class SettingController extends Controller
     public function requestPayout(Request $request)
     {
         $vendor = $this->vendor();
-        $availableBalance = $vendor->calculated_balance;
-
-        $request->validate([
-            'amount' => 'required|numeric|min:50|max:' . $availableBalance,
-        ]);
 
         // Check if vendor has payment info set up
         if (empty($vendor->payment_info) || empty($vendor->payment_info['preferred_method'])) {
@@ -146,13 +204,19 @@ class SettingController extends Controller
                 ->with('error', 'Please set up your payment information before requesting a payout.');
         }
 
+        $request->validate([
+            'amount' => 'required|numeric|min:' . self::MIN_PAYOUT . '|max:' . $this->requestable($vendor),
+        ], [
+            'amount.max' => 'You can request at most ' . format_currency($this->requestable($vendor)) . ' (your balance minus requests still pending).',
+        ]);
+
         $paymentMethod = $vendor->payment_info['preferred_method'];
         $paymentDetails = '';
 
         switch ($paymentMethod) {
             case 'bank_transfer':
                 $bank = $vendor->payment_info['bank'] ?? [];
-                $paymentDetails = "Bank: {$bank['name']}\nAccount: {$bank['account_name']}\nNumber: {$bank['account_number']}";
+                $paymentDetails = 'Bank: ' . ($bank['name'] ?? '') . "\nAccount: " . ($bank['account_name'] ?? '') . "\nNumber: " . ($bank['account_number'] ?? '');
                 break;
             case 'paypal':
                 $paymentDetails = "PayPal: " . ($vendor->payment_info['paypal']['email'] ?? '');
@@ -173,6 +237,3 @@ class SettingController extends Controller
         return redirect()->back()->with('success', 'Payout request submitted successfully! We will process it within 3-5 business days.');
     }
 }
-
-
-

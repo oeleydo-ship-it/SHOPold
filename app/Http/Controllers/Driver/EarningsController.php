@@ -7,6 +7,7 @@ use App\Models\DriverEarning;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 use Carbon\Carbon;
 
 class EarningsController extends Controller
@@ -62,11 +63,24 @@ class EarningsController extends Controller
         // Calculate average per delivery
         $avgPerDelivery = $deliveriesCount > 0 ? $totalEarnings / $deliveriesCount : 0;
 
-        return view('driver.earnings.index', compact(
-            'driver', 'period', 'totalEarnings', 'deliveryEarnings', 
-            'tipEarnings', 'bonusEarnings', 'deliveriesCount', 
-            'dailyEarnings', 'recentTransactions', 'avgPerDelivery'
-        ));
+        return Inertia::render('Driver/Earnings/Index', [
+            'period' => in_array($period, ['today', 'week', 'month', 'year'], true) ? $period : 'week',
+            'summary' => [
+                'total' => format_currency($totalEarnings),
+                'delivery' => format_currency($deliveryEarnings),
+                'tips' => format_currency($tipEarnings),
+                'bonus' => format_currency($bonusEarnings),
+                'deliveries' => $deliveriesCount,
+                'average' => format_currency($avgPerDelivery),
+                'lifetime' => format_currency($driver->driver_total_earnings ?? 0),
+            ],
+            'daily' => $dailyEarnings->map(fn ($d) => [
+                'date' => Carbon::parse($d->date)->format('M d'),
+                'value' => (float) $d->total,
+                'label' => format_currency($d->total),
+            ])->values(),
+            'transactions' => $recentTransactions->map(fn ($t) => $this->transaction($t))->values(),
+        ]);
     }
 
     public function history(Request $request)
@@ -97,6 +111,23 @@ class EarningsController extends Controller
             ->groupBy('type')
             ->pluck('total', 'type');
 
-        return view('driver.earnings.history', compact('transactions', 'totals'));
+        return Inertia::render('Driver/Earnings/History', [
+            'transactions' => $transactions->withQueryString()->through(fn ($t) => $this->transaction($t)),
+            'totals' => collect(['delivery', 'tip', 'bonus'])->mapWithKeys(fn ($k) => [$k => format_currency($totals[$k] ?? 0)]),
+            'filters' => $request->only('type', 'date_from', 'date_to'),
+        ]);
+    }
+
+    protected function transaction(DriverEarning $t): array
+    {
+        return [
+            'id' => $t->id,
+            'type' => $t->type,
+            'amount' => format_currency($t->amount),
+            'description' => $t->description,
+            'status' => $t->status,
+            'order' => $t->order ? ['id' => $t->order->id, 'number' => $t->order->order_number] : null,
+            'date' => $t->created_at->format('M d, Y H:i'),
+        ];
     }
 }

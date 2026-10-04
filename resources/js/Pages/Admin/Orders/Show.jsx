@@ -439,7 +439,7 @@ export default function Show({ order, drivers }) {
 
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <Link href="/admin/orders" className="inline-flex items-center gap-2 text-sm text-muted hover:text-ink"><ArrowLeft size={16} />Back to Orders</Link>
-                <LinkButton external href={`/admin/invoices/${order.id}`}><FileText size={16} />Invoice</LinkButton>
+                <LinkButton href={`/admin/invoices/${order.id}`}><FileText size={16} />Invoice</LinkButton>
                 <LinkButton external tone="neutral" href={`/admin/invoices/${order.id}/download`}><Download size={16} />PDF</LinkButton>
             </div>
 

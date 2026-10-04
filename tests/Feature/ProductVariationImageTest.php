@@ -5,6 +5,9 @@ use App\Models\ProductVariation;
 use App\Models\Category;
 use App\Models\Attribute;
 use App\Models\AttributeValue;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 test('product show page includes variation data with images', function () {
     // Create a category
@@ -125,7 +128,7 @@ test('product show page handles variations without images', function () {
     $response->assertSee('main-product.jpg');
     
     // Check that variation data includes null image
-    $response->assertSee('"image":null');
+    $response->assertSee('"image":null', false); // raw JSON inside a <script>, so don't HTML-escape the needle
 });
 
 test('simple product shows main image without variation functionality', function () {

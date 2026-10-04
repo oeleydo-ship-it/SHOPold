@@ -8,6 +8,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class OrderController extends Controller
 {
@@ -19,6 +20,13 @@ class OrderController extends Controller
     protected function vendorProductIds()
     {
         return Product::where('vendor_id', $this->vendor()->id)->pluck('id');
+    }
+
+    /** Items may only be fulfilled once the order is paid (or is cash on delivery) and not cancelled. */
+    protected function canFulfill(Order $order): bool
+    {
+        return $order->status !== 'cancelled'
+            && ($order->payment_status === 'paid' || $order->payment_method === 'cod');
     }
 
     public function index(Request $request)
@@ -46,16 +54,23 @@ class OrderController extends Controller
             $query->where('order_number', 'like', '%' . $request->search . '%');
         }
 
-        $orders = $query->latest()->paginate(15);
+        $orders = $query->latest()->paginate(15)->withQueryString();
 
-        // Calculate vendor's portion for each order
-        foreach ($orders as $order) {
-            $order->vendor_total = $order->items->sum('total');
-            $order->vendor_items_count = $order->items->count();
-            $order->pending_items = $order->items->where('fulfillment_status', 'pending')->count();
-        }
-
-        return view('vendor.orders.index', compact('orders'));
+        return Inertia::render('Vendor/Orders/Index', [
+            'orders' => $orders->through(fn ($order) => [
+                'id' => $order->id,
+                'number' => $order->order_number,
+                'customer' => $order->user->name ?? $order->shipping_name,
+                'items' => $order->items->count(),
+                'pending_items' => $order->items->where('fulfillment_status', 'pending')->count(),
+                'total' => format_currency($order->items->sum('total')),
+                'status' => $order->status,
+                'payment_status' => $order->payment_status,
+                'date' => $order->created_at->format('M d, Y'),
+            ]),
+            'filters' => $request->only(['search', 'status', 'fulfillment']),
+            'fulfillmentStatuses' => OrderItem::fulfillmentStatuses(),
+        ]);
     }
 
     public function show(Order $order)
@@ -74,9 +89,54 @@ class OrderController extends Controller
 
         $vendorTotal = $order->items->sum('total');
         $commission = $vendorTotal * (($this->vendor()->commission_rate ?? 0) / 100);
-        $vendorEarnings = $vendorTotal - $commission;
 
-        return view('vendor.orders.show', compact('order', 'vendorTotal', 'commission', 'vendorEarnings'));
+        return Inertia::render('Vendor/Orders/Show', [
+            'order' => [
+                'id' => $order->id,
+                'number' => $order->order_number,
+                'date' => $order->created_at->format('M d, Y H:i'),
+                'status' => $order->status,
+                'payment_status' => $order->payment_status,
+                'payment_method' => $order->payment_method,
+                'notes' => $order->notes,
+                'can_fulfill' => $this->canFulfill($order),
+                'customer' => [
+                    'name' => $order->user->name ?? $order->shipping_name,
+                    'email' => $order->user->email ?? $order->shipping_email,
+                    'phone' => $order->shipping_phone,
+                ],
+                'shipping' => [
+                    'name' => $order->shipping_name,
+                    'address' => $order->shipping_address,
+                    'city' => trim("{$order->shipping_city}, {$order->shipping_state} {$order->shipping_zip}", ', '),
+                    'country' => $order->shipping_country,
+                ],
+                'items' => $order->items->map(fn ($item) => [
+                    'id' => $item->id,
+                    'name' => $item->product_name ?? $item->product?->name,
+                    'product_id' => $item->product_id,
+                    'image' => $item->product?->image_url,
+                    'options' => (object) ($item->variation_options ?? []),
+                    'quantity' => (int) $item->quantity,
+                    'price' => format_currency($item->price),
+                    'total' => format_currency($item->total),
+                    'status' => $item->fulfillment_status,
+                    'status_label' => $item->fulfillment_status_label,
+                    'tracking_number' => $item->tracking_number,
+                    'shipping_carrier' => $item->shipping_carrier,
+                    'vendor_note' => $item->vendor_note,
+                    'shipped_at' => $item->shipped_at?->format('M d, Y'),
+                    'delivered_at' => $item->delivered_at?->format('M d, Y'),
+                ])->values(),
+            ],
+            'totals' => [
+                'sales' => format_currency($vendorTotal),
+                'commission' => format_currency($commission),
+                'rate' => (float) ($this->vendor()->commission_rate ?? 0),
+                'earnings' => format_currency($vendorTotal - $commission),
+            ],
+            'fulfillmentStatuses' => OrderItem::fulfillmentStatuses(),
+        ]);
     }
 
     public function updateItemStatus(Request $request, OrderItem $item)
@@ -92,6 +152,10 @@ class OrderController extends Controller
             'shipping_carrier' => 'nullable|string|max:255',
             'vendor_note' => 'nullable|string|max:1000',
         ]);
+
+        if (!$this->canFulfill($item->order)) {
+            return back()->with('error', 'This order cannot be fulfilled until it is paid.');
+        }
 
         $updateData = [
             'fulfillment_status' => $request->fulfillment_status,
@@ -132,7 +196,7 @@ class OrderController extends Controller
     public function bulkUpdateStatus(Request $request, Order $order)
     {
         $vendorProductIds = $this->vendorProductIds();
-        
+
         $request->validate([
             'fulfillment_status' => 'required|in:pending,processing,shipped,delivered,cancelled',
             'tracking_number' => 'nullable|string|max:255',
@@ -143,6 +207,10 @@ class OrderController extends Controller
 
         if ($items->isEmpty()) {
             abort(403);
+        }
+
+        if (!$this->canFulfill($order)) {
+            return back()->with('error', 'This order cannot be fulfilled until it is paid.');
         }
 
         $updateData = [
@@ -180,14 +248,14 @@ class OrderController extends Controller
 
         // Check if all items are delivered
         $allDelivered = $order->items->every(fn($item) => $item->fulfillment_status === 'delivered');
-        
+
         if ($allDelivered && $order->status !== 'delivered') {
             $order->update(['status' => 'delivered']);
         }
 
         // Check if all items are shipped (at minimum)
         $allShipped = $order->items->every(fn($item) => in_array($item->fulfillment_status, ['shipped', 'delivered']));
-        
+
         if ($allShipped && $order->status === 'processing') {
             $order->update(['status' => 'shipped']);
         }

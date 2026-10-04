@@ -48,7 +48,8 @@ class HelpdeskController extends Controller
             'description' => 'required|string|max:5000',
             'category' => 'required|string',
             'priority' => 'required|in:low,medium,high,urgent',
-            'order_id' => 'nullable|exists:orders,id',
+            // only the customer's own orders (otherwise the ticket would show someone else's order number and total)
+            'order_id' => ['nullable', \Illuminate\Validation\Rule::exists('orders', 'id')->where('user_id', auth()->id())],
         ]);
 
         $validated['user_id'] = auth()->id();

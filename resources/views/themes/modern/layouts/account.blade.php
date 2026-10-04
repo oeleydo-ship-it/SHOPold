@@ -17,6 +17,9 @@
             <p class="text-white/80 text-sm">Hi, {{ auth()->user()->name }}</p>
             <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">@yield('account_heading')</h1>
         </div>
+        @hasSection('account_actions')
+            <div class="ml-auto [&_a]:!bg-white [&_a]:!text-gray-900 [&_a]:!rounded-full">@yield('account_actions')</div>
+        @endif
     </div>
 
     {{-- Mobile Sidebar (horizontal navigation) --}}

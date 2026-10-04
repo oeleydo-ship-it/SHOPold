@@ -1,29 +1,29 @@
-@extends('layouts.app')
+@extends('layouts.account')
 
+{{-- One support ticket with its conversation, inside the themed account shell. --}}
 @section('title', 'Ticket #' . $ticket->ticket_number)
 
-@section('content')
-<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-    <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-4">
-            <a href="{{ route('helpdesk.index') }}" class="text-gray-600 hover:text-gray-800">
-                <i class="fas fa-arrow-left"></i>
-            </a>
-            <div>
-                <h1 class="text-xl md:text-2xl font-bold">{{ $ticket->subject }}</h1>
-                <p class="text-sm text-gray-500">Ticket #{{ $ticket->ticket_number }}</p>
-            </div>
-        </div>
+@section('account_heading', 'Ticket #' . $ticket->ticket_number)
+
+@section('account_actions')
+    <div class="flex items-center gap-2">
+        <a href="{{ route('helpdesk.index') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+            <i class="fas fa-arrow-left mr-2" aria-hidden="true"></i>All tickets
+        </a>
         @if($ticket->status !== 'closed')
         <form action="{{ route('helpdesk.close', $ticket) }}" method="POST" onsubmit="return confirm('Are you sure you want to close this ticket?')">
             @csrf
             @method('PATCH')
-            <button type="submit" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-                <i class="fas fa-check mr-2"></i>Close Ticket
+            <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                <i class="fas fa-check mr-2" aria-hidden="true"></i>Close Ticket
             </button>
         </form>
         @endif
     </div>
+@endsection
+
+@section('account_content')
+    <h2 class="text-xl font-bold mb-4">{{ $ticket->subject }}</h2>
 
     @if(session('success'))
     <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
@@ -31,8 +31,8 @@
     </div>
     @endif
 
-    <div class="grid lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 space-y-6">
+    <div class="grid xl:grid-cols-3 gap-6">
+        <div class="xl:col-span-2 space-y-6">
             <!-- Original Description -->
             <div class="bg-white rounded-xl shadow-sm p-6">
                 <div class="flex items-start gap-4">
@@ -178,5 +178,4 @@
             @endif
         </div>
     </div>
-</div>
 @endsection

@@ -1,22 +1,17 @@
-@extends('layouts.app')
+@extends('layouts.account')
 
+{{-- Customer helpdesk list. Uses the account shell, so each theme's account styling and navigation apply. --}}
 @section('title', 'My Support Tickets')
 
-@section('content')
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl md:text-3xl font-bold">My Support Tickets</h1>
-        <a href="{{ route('helpdesk.create') }}" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
-            <i class="fas fa-plus mr-2"></i>New Ticket
-        </a>
-    </div>
-    
-    <div class="grid lg:grid-cols-4 gap-6 md:gap-8">
-        <div class="hidden lg:block">
-            @include('account.partials.sidebar')
-        </div>
-        
-        <div class="lg:col-span-3">
+@section('account_heading', 'My Support Tickets')
+
+@section('account_actions')
+    <a href="{{ route('helpdesk.create') }}" class="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+        <i class="fas fa-plus mr-2" aria-hidden="true"></i>New Ticket
+    </a>
+@endsection
+
+@section('account_content')
             @if(session('success'))
             <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
                 {{ session('success') }}
@@ -66,7 +61,4 @@
                 </div>
                 @endif
             </div>
-        </div>
-    </div>
-</div>
 @endsection

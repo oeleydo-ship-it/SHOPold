@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import {
     AlertTriangle, Check, Clock, Cloud, Download, Infinity as InfinityIcon, Layers, Link2, Loader2,
     Pencil, Plus, Search, ShoppingBasket, Sparkles, Trash2, Wand2, X,
@@ -221,7 +221,7 @@ function Variations({ product }) {
                             <p className="font-medium">{v.name}</p>
                             <div className="flex items-center gap-3">
                                 <span className={`text-sm ${v.quantity > 0 ? 'text-success' : 'text-danger'}`}>Stock: {v.quantity}</span>
-                                <a href={`/admin/products/${product.id}/variations/${v.id}/edit`} title="Edit variation" aria-label={`Edit ${v.name}`} className="text-primary"><Pencil size={16} /></a>
+                                <Link href={`/admin/products/${product.id}/variations/${v.id}/edit`} title="Edit variation" aria-label={`Edit ${v.name}`} className="text-primary"><Pencil size={16} /></Link>
                                 <button type="button" onClick={() => remove(v)} title="Delete variation" aria-label={`Delete ${v.name}`} className="text-danger"><Trash2 size={16} /></button>
                             </div>
                         </div>
