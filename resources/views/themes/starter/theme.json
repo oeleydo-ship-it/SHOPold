@@ -1,0 +1,35 @@
+{
+    "name": "Starter Theme",
+    "version": "1.0.0",
+    "author": "LaravelShop",
+    "description": "Basic starter template for creating custom themes",
+    "preview": "preview.png",
+    "colors": {
+        "primary": "#059669",
+        "secondary": "#047857"
+    },
+    "fonts": {
+        "heading": "Roboto",
+        "body": "Roboto"
+    },
+    "defaults": {
+        "primary_color": "#059669",
+        "secondary_color": "#047857",
+        "accent_color": "#f59e0b",
+        "font_family": "Roboto",
+        "heading_font": "",
+        "border_radius": "sm",
+        "button_style": "square",
+        "animation_speed": "none",
+        "header_style": "minimal",
+        "hero_style": "image",
+        "hero_height": "medium",
+        "footer_style": "minimal",
+        "footer_bg_color": "#064e3b",
+        "footer_text_color": "#a7f3d0",
+        "footer_link_hover": "#ffffff"
+    },
+    "hide": [
+        "footer_style"
+    ]
+}

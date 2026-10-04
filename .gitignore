@@ -1,0 +1,45 @@
+# Dependencies (restore with `composer install` and `npm install`)
+/vendor/
+/node_modules/
+
+# Environment and secrets - never commit these
+.env
+.env.*
+!.env.example
+auth.json
+*.pem
+*.key
+install-config.json
+
+# Build output (rebuild with `npm run build`; `public/hot` exists only while `npm run dev` runs)
+/public/build/
+/public/hot
+/public/storage
+
+# Uploaded files, digital products, backups and runtime data (environment-specific).
+# storage/app, storage/framework/* , storage/logs and bootstrap/cache have their own .gitignore files
+# that keep the folders but ignore their contents.
+/storage/*.key
+/storage/installed
+/storage/backups/
+/storage/inertia-devtools/
+/storage/framework/testing/
+
+# Archives and dumps
+*.zip
+*.sql
+*.sqlite
+*.bak
+storage.zip
+
+# Tooling and OS files
+/.claude/
+/.kiro/
+/.idea/
+/.vscode/
+/.phpunit.cache
+/.phpunit.result.cache
+.DS_Store
+Thumbs.db
+npm-debug.log
+yarn-error.log

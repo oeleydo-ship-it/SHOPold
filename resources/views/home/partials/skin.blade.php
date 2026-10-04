@@ -1,0 +1,1 @@
+{{-- Homepage: extra styles for the active theme (hero, section headings, banners, promo, deals, blog, newsletter). Empty for the shared look; themes override themes/<slug>/home/partials/skin.blade.php. --}}

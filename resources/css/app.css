@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+/* Semantic tokens: every theme only has to define these variables. */
+@theme inline {
+    --color-bg: var(--bg);
+    --color-surface: var(--surface);
+    --color-surface-2: var(--surface-2);
+    --color-line: var(--line);
+    --color-ink: var(--ink);
+    --color-muted: var(--muted);
+    --color-primary: var(--primary);
+    --color-primary-hover: var(--primary-hover);
+    --color-primary-soft: var(--primary-soft);
+    --color-on-primary: var(--on-primary);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-ink: var(--sidebar-ink);
+    --color-sidebar-hover: var(--sidebar-hover);
+    --color-success: var(--success);
+    --color-warning: var(--warning);
+    --color-danger: var(--danger);
+    --color-info: var(--info);
+    --radius-card: var(--radius);
+    --font-sans: var(--font);
+}
+
+:root, [data-theme="light"] {
+    --bg: #f3f4f6; --surface: #ffffff; --surface-2: #f9fafb; --line: #e5e7eb;
+    --ink: #111827; --muted: #6b7280;
+    --primary: #2563eb; --primary-hover: #1d4ed8; --primary-soft: #dbeafe; --on-primary: #ffffff;
+    --sidebar: #111827; --sidebar-ink: #d1d5db; --sidebar-hover: #1f2937;
+    --success: #059669; --warning: #d97706; --danger: #dc2626; --info: #0284c7;
+    --radius: 0.75rem; --font: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    color-scheme: light;
+}
+[data-theme="dark"] {
+    --bg: #0b1220; --surface: #111827; --surface-2: #162033; --line: #263248;
+    --ink: #f3f4f6; --muted: #9ca3af;
+    --primary: #3b82f6; --primary-hover: #60a5fa; --primary-soft: #1e3a8a; --on-primary: #ffffff;
+    --sidebar: #070d18; --sidebar-ink: #9ca3af; --sidebar-hover: #162033;
+    --success: #34d399; --warning: #fbbf24; --danger: #f87171; --info: #38bdf8;
+    --radius: 0.75rem; --font: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    color-scheme: dark;
+}
+[data-theme="violet"] {
+    --bg: #f5f3ff; --surface: #ffffff; --surface-2: #faf5ff; --line: #ddd6fe;
+    --ink: #1e1b4b; --muted: #6d28d9;
+    --primary: #7c3aed; --primary-hover: #6d28d9; --primary-soft: #ede9fe; --on-primary: #ffffff;
+    --sidebar: #2e1065; --sidebar-ink: #ddd6fe; --sidebar-hover: #4c1d95;
+    --success: #059669; --warning: #d97706; --danger: #dc2626; --info: #0284c7;
+    --radius: 1rem; --font: 'Poppins', 'Inter', ui-sans-serif, system-ui, sans-serif;
+    color-scheme: light;
+}
+[data-theme="emerald"] {
+    --bg: #ecfdf5; --surface: #ffffff; --surface-2: #f0fdf4; --line: #bbf7d0;
+    --ink: #052e16; --muted: #15803d;
+    --primary: #059669; --primary-hover: #047857; --primary-soft: #d1fae5; --on-primary: #ffffff;
+    --sidebar: #064e3b; --sidebar-ink: #a7f3d0; --sidebar-hover: #065f46;
+    --success: #059669; --warning: #d97706; --danger: #dc2626; --info: #0284c7;
+    --radius: 0.5rem; --font: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    color-scheme: light;
+}
+[data-theme="sunset"] {
+    --bg: #fff7ed; --surface: #ffffff; --surface-2: #fffbeb; --line: #fed7aa;
+    --ink: #431407; --muted: #9a3412;
+    --primary: #ea580c; --primary-hover: #c2410c; --primary-soft: #ffedd5; --on-primary: #ffffff;
+    --sidebar: #431407; --sidebar-ink: #fed7aa; --sidebar-hover: #7c2d12;
+    --success: #059669; --warning: #d97706; --danger: #dc2626; --info: #0284c7;
+    --radius: 0.75rem; --font: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    color-scheme: light;
+}
+
+body { background: var(--bg); color: var(--ink); font-family: var(--font); }
+
+/* Content authored in the rich editor (Tailwind preflight strips default element styles). */
+.rich-content h2 { font-size: 1.5rem; font-weight: 700; margin: 1rem 0 .5rem; }
+.rich-content h3 { font-size: 1.25rem; font-weight: 700; margin: 1rem 0 .5rem; }
+.rich-content h4 { font-size: 1.1rem; font-weight: 600; margin: .75rem 0 .5rem; }
+.rich-content p { margin: .5rem 0; }
+.rich-content ul { list-style: disc; padding-left: 1.5rem; margin: .5rem 0; }
+.rich-content ol { list-style: decimal; padding-left: 1.5rem; margin: .5rem 0; }
+.rich-content a { color: var(--primary); text-decoration: underline; }
+.rich-content blockquote { border-left: 3px solid var(--line); padding-left: 1rem; color: var(--muted); margin: .75rem 0; }
+.rich-content hr { border: 0; border-top: 1px solid var(--line); margin: 1rem 0; }

@@ -1,0 +1,56 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 3306,
+    "database": "laravel_shop",
+    "username": "shop_user",
+    "password": "secure_password"
+  },
+  "admin": {
+    "name": "Admin User",
+    "email": "admin@example.com",
+    "password": "admin_password_123"
+  },
+  "store": {
+    "name": "My Online Store",
+    "email": "info@example.com",
+    "currency": "USD",
+    "timezone": "UTC",
+    "language": "en"
+  },
+  "application": {
+    "url": "https://yourdomain.com",
+    "environment": "production",
+    "debug": false
+  },
+  "features": {
+    "multi_vendor": false,
+    "driver_portal": true,
+    "reviews": true,
+    "wishlist": true,
+    "coupons": true,
+    "guest_checkout": true,
+    "email_verification": false,
+    "newsletter": true,
+    "blog": true,
+    "loyalty_points": false
+  },
+  "payment": {
+    "stripe_enabled": false,
+    "paypal_enabled": false,
+    "razorpay_enabled": false,
+    "cod_enabled": true
+  },
+  "email": {
+    "from_name": "My Online Store",
+    "from_address": "noreply@example.com",
+    "order_confirmation": true,
+    "order_status_updates": true,
+    "welcome_email": true
+  },
+  "seo": {
+    "meta_title": "My Online Store - Shop the Best Products",
+    "meta_description": "Discover amazing products at great prices. Fast shipping and excellent customer service.",
+    "meta_keywords": "ecommerce, online shopping, products, store"
+  }
+}

@@ -1,0 +1,16 @@
+{
+    "name": "Default Theme",
+    "version": "1.0.0",
+    "author": "LaravelShop",
+    "description": "Clean and modern default theme with a minimalist design",
+    "preview": "preview.png",
+    "colors": {
+        "primary": "#2563eb",
+        "secondary": "#1e40af"
+    },
+    "fonts": {
+        "heading": "Inter",
+        "body": "Inter"
+    },
+    "defaults": {}
+}

@@ -1,0 +1,35 @@
+{
+    "name": "Modern Theme",
+    "version": "1.0.0",
+    "author": "LaravelShop",
+    "description": "Bold and vibrant theme with animations and shadows",
+    "preview": "preview.png",
+    "colors": {
+        "primary": "#7c3aed",
+        "secondary": "#5b21b6"
+    },
+    "fonts": {
+        "heading": "Poppins",
+        "body": "Inter"
+    },
+    "defaults": {
+        "primary_color": "#7c3aed",
+        "secondary_color": "#5b21b6",
+        "accent_color": "#f472b6",
+        "font_family": "Inter",
+        "heading_font": "Poppins",
+        "border_radius": "xl",
+        "button_style": "pill",
+        "animation_speed": "fast",
+        "header_style": "centered",
+        "hero_style": "gradient",
+        "hero_height": "large",
+        "footer_style": "expanded",
+        "footer_bg_color": "#1e1b4b",
+        "footer_text_color": "#c4b5fd",
+        "footer_link_hover": "#ffffff"
+    },
+    "hide": [
+        "footer_style"
+    ]
+}

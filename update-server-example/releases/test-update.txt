@@ -1,0 +1,2 @@
+This is a test update file for development purposes.
+The actual update zip files should be placed in this directory.
