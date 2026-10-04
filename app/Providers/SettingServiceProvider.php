@@ -59,6 +59,7 @@ class SettingServiceProvider extends ServiceProvider
         try {
             if ($settingsTableReady) {
                 $this->configureMailSettings();
+                \App\Support\MailQueue::apply(); // "send emails in the background" -> database queue
             }
 
             View::composer(['layouts.app', 'home', 'shop.*', 'cart.*', 'checkout.*', 'account.*', 'auth.*', 'blog.*', 'page.*'], function ($view) {

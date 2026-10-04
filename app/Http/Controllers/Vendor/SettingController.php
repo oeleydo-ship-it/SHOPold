@@ -211,26 +211,14 @@ class SettingController extends Controller
         ]);
 
         $paymentMethod = $vendor->payment_info['preferred_method'];
-        $paymentDetails = '';
-
-        switch ($paymentMethod) {
-            case 'bank_transfer':
-                $bank = $vendor->payment_info['bank'] ?? [];
-                $paymentDetails = 'Bank: ' . ($bank['name'] ?? '') . "\nAccount: " . ($bank['account_name'] ?? '') . "\nNumber: " . ($bank['account_number'] ?? '');
-                break;
-            case 'paypal':
-                $paymentDetails = "PayPal: " . ($vendor->payment_info['paypal']['email'] ?? '');
-                break;
-            case 'stripe':
-                $paymentDetails = "Stripe: " . ($vendor->payment_info['stripe']['account_id'] ?? '');
-                break;
-        }
+        $key = ['bank_transfer' => 'bank', 'paypal' => 'paypal', 'stripe' => 'stripe'][$paymentMethod] ?? null;
 
         \App\Models\VendorPayout::create([
             'vendor_id' => $vendor->id,
             'amount' => $request->amount,
             'payment_method' => $paymentMethod,
-            'notes' => $paymentDetails,
+            // where to send the money, as it was when requested; encrypted at rest (EncryptedJson cast)
+            'payment_details' => $key ? [$key => $vendor->payment_info[$key] ?? []] : null,
             'status' => 'pending',
         ]);
 

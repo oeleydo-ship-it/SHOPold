@@ -250,15 +250,17 @@ class CheckoutController extends Controller
                     // Get currency (ensure lowercase)
                     $currency = strtolower($stripeConfig['currency'] ?: 'usd');
                     
+                    $stripeAmount = \App\Services\PaymentGatewayService::stripeAmount($total, $currency);
+
                     Log::info('Stripe Payment Attempt', [
-                        'amount' => (int) ($total * 100),
+                        'amount' => $stripeAmount,
                         'currency' => $currency,
                         'payment_method_id' => $stripePaymentMethodId,
                     ]);
                     
                     // Create payment intent and confirm it
                     $paymentIntent = \Stripe\PaymentIntent::create([
-                        'amount' => (int) ($total * 100), // Convert to cents
+                        'amount' => $stripeAmount, // smallest currency unit, rounded
                         'currency' => $currency,
                         'payment_method' => $stripePaymentMethodId,
                         'confirm' => true,
@@ -267,8 +269,8 @@ class CheckoutController extends Controller
                             'allow_redirects' => 'never',
                         ],
                         'metadata' => [
-                            'user_id' => auth()->id(),
-                            'user_email' => auth()->user()->email,
+                            'user_id' => auth()->id(), // null for guest checkout
+                            'user_email' => auth()->user()?->email ?? $request->shipping_email,
                         ],
                     ]);
                     
@@ -293,7 +295,7 @@ class CheckoutController extends Controller
                 } catch (\Exception $e) {
                     DB::rollBack();
                     Log::error('Stripe Error: ' . $e->getMessage() . ' | Trace: ' . $e->getTraceAsString());
-                    return back()->with('error', 'Payment processing failed: ' . $e->getMessage());
+                    return back()->with('error', 'Payment processing failed. Please try again or choose another payment method.');
                 }
             }
 
@@ -403,6 +405,7 @@ class CheckoutController extends Controller
             
             // Send new order notification to admin
             $this->sendAdminOrderNotification($order);
+            \App\Support\PartnerMailer::vendorNewOrder($order);
 
             // Handle redirect-based payment gateways
             $redirectGateways = ['paystack', 'flutterwave', 'sslcommerz', 'bkash', 'nagad', 'paytm', 'instamojo', 'payfast', 'mercadopago', 'iyzico', 'razorpay'];
@@ -423,9 +426,22 @@ class CheckoutController extends Controller
 
             return redirect()->route('checkout.success', $order)->with('success', 'Order placed successfully!');
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             \Log::error('Checkout Error: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());
+
+            // The card was already charged but the order could not be saved: give the money back.
+            if (!empty($stripePaymentIntentId)) {
+                try {
+                    \Stripe\Refund::create(['payment_intent' => $stripePaymentIntentId]);
+                    \Log::warning("Checkout failed after payment; refunded Stripe payment {$stripePaymentIntentId}");
+                    return back()->with('error', 'Something went wrong while saving your order. Your payment has been refunded; please try again.');
+                } catch (\Throwable $refundError) {
+                    \Log::critical("Checkout failed after payment and the refund failed for {$stripePaymentIntentId}: " . $refundError->getMessage());
+                    return back()->with('error', 'Something went wrong while saving your order after payment. Please contact us with this reference: ' . $stripePaymentIntentId);
+                }
+            }
+
             return back()->with('error', 'Something went wrong. Please try again.');
         }
     }

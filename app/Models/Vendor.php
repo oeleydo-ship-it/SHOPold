@@ -37,10 +37,13 @@ class Vendor extends Model
         'approved_at',
     ];
 
+    /** Payout details are never serialised (toArray/JSON); read the attribute explicitly where needed. */
+    protected $hidden = ['payment_info'];
+
     protected $casts = [
         'social_links' => 'array',
         'business_info' => 'array',
-        'payment_info' => 'array',
+        'payment_info' => \App\Casts\EncryptedJson::class, // bank / PayPal / Stripe payout details, encrypted at rest
         'featured' => 'boolean',
         'approved_at' => 'datetime',
         'commission_rate' => 'decimal:2',

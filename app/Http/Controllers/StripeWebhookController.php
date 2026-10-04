@@ -96,7 +96,8 @@ class StripeWebhookController extends Controller
 
         $order = Order::where('transaction_id', $paymentIntent->id)->first();
 
-        if ($order) {
+        // A late failure event (e.g. an earlier attempt) must not undo a payment that already went through.
+        if ($order && !in_array($order->payment_status, ['paid', 'refunded', 'partially_refunded'], true)) {
             $order->update([
                 'payment_status' => 'failed',
             ]);
@@ -116,10 +117,12 @@ class StripeWebhookController extends Controller
             $order = Order::where('transaction_id', $charge->payment_intent)->first();
 
             if ($order) {
+                // charge.refunded also fires for partial refunds; only a full refund marks the order refunded.
+                $full = !empty($charge->refunded) || (isset($charge->amount_refunded, $charge->amount) && $charge->amount_refunded >= $charge->amount);
                 $order->update([
-                    'payment_status' => 'refunded',
+                    'payment_status' => $full ? 'refunded' : 'partially_refunded',
                 ]);
-                Log::info('Order #' . $order->order_number . ' marked as refunded via webhook');
+                Log::info('Order #' . $order->order_number . ' marked as ' . ($full ? 'refunded' : 'partially refunded') . ' via webhook');
             }
         }
     }

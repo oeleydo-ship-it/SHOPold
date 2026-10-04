@@ -1,6 +1,6 @@
-{{-- Order lines with options; @include('emails.partials.items', ['order' => $order, 'totals' => true]) --}}
+{{-- Order lines with options; @include('emails.partials.items', ['order' => $order, 'totals' => true]); pass 'items' to list only some lines (a vendor's share). --}}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;font-size:14px;">
-    @foreach($order->items as $item)
+    @foreach($items ?? $order->items as $item)
         <tr>
             <td style="padding:10px 0;border-bottom:1px solid #e5e7eb;">
                 <strong>{{ $item->product_name }}</strong>

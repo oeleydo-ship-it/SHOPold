@@ -31,11 +31,17 @@ class OrderController extends Controller
             'address' => trim("{$order->shipping_address}, {$order->shipping_city}", ', '),
             'items' => $order->items->sum('quantity'),
             'total' => format_currency($order->total),
-            'cod' => $order->payment_method === 'cod' && $order->payment_status !== 'paid' && in_array($order->status, self::ACTIVE, true),
+            'cod' => self::cashDue($order) && in_array($order->status, self::ACTIVE, true),
             'date' => $order->created_at->format('M d, H:i'),
             'delivered_at' => $order->delivered_at ? \Illuminate\Support\Carbon::parse($order->delivered_at)->format('M d, Y H:i') : null,
             'earnings' => $order->status === 'delivered' && $order->driver_earnings !== null ? format_currency($order->driver_earnings) : null,
         ];
+    }
+
+    /** A cash-on-delivery order whose money the driver still has to collect. */
+    protected static function cashDue(Order $order): bool
+    {
+        return $order->payment_method === 'cod' && $order->payment_status !== 'paid';
     }
 
     protected function own(Order $order): void
@@ -156,8 +162,10 @@ class OrderController extends Controller
             $updateData['driver_notes'] = $this->appendNote($order, $request->driver_notes);
         }
 
+        $previous = $order->status;
         $order->update($updateData);
         $order->items()->where('fulfillment_status', '!=', 'cancelled')->update(['fulfillment_status' => 'shipped', 'shipped_at' => now()]);
+        \App\Support\OrderMailer::statusChanged($order, $previous);
 
         return back()->with('success', $request->status === 'picked_up' ? 'Marked as picked up.' : 'Order status updated successfully!');
     }
@@ -203,7 +211,9 @@ class OrderController extends Controller
             'proof_photo' => 'nullable|image|max:5120',
             'signature' => self::SIGNATURE_RULE,
             'driver_notes' => 'nullable|string|max:1000',
-        ]);
+            // cash on delivery: the driver confirms the money was collected before the order counts as paid
+            'cash_collected' => self::cashDue($order) ? 'accepted' : 'nullable',
+        ], ['cash_collected.accepted' => 'Confirm that you collected ' . format_currency($order->total) . ' in cash.']);
 
         $driver = Auth::user();
 
@@ -219,6 +229,11 @@ class OrderController extends Controller
                 'delivered_at' => now(),
                 'shipped_at' => $order->shipped_at ?? now(),
             ];
+            if (self::cashDue($order)) {
+                $updateData['payment_status'] = 'paid';
+                $updateData['driver_notes'] = $this->appendNote($order, 'Cash collected: ' . format_currency($order->total));
+                $order->driver_notes = $updateData['driver_notes']; // so a note added below follows this one
+            }
 
             if ($request->hasFile('proof_photo')) {
                 $updateData['delivery_proof_photo'] = $this->storeProof($request, $order);
@@ -265,6 +280,8 @@ class OrderController extends Controller
         if (!$done) {
             return redirect()->route('driver.orders.show', $order)->with('error', 'This order was already completed.');
         }
+
+        \App\Support\OrderMailer::statusChanged($order->fresh(), $order->status);
 
         return redirect()->route('driver.orders.index')
             ->with('success', 'Delivery completed successfully!');

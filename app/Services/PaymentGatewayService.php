@@ -514,6 +514,19 @@ class PaymentGatewayService
         }
     }
 
+    /** Currencies Stripe charges in whole units (no cents): https://docs.stripe.com/currencies#zero-decimal */
+    public const STRIPE_ZERO_DECIMAL = ['bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf'];
+
+    /**
+     * Amount in Stripe's smallest currency unit. Rounded, not truncated: (int) (19.99 * 100) is 1998.
+     */
+    public static function stripeAmount(float $amount, string $currency): int
+    {
+        return in_array(strtolower($currency), self::STRIPE_ZERO_DECIMAL, true)
+            ? (int) round($amount)
+            : (int) round($amount * 100);
+    }
+
     /**
      * Create Stripe payment intent
      */
@@ -524,7 +537,7 @@ class PaymentGatewayService
             $config = $this->getStripeConfig();
 
             return \Stripe\PaymentIntent::create([
-                'amount' => (int) ($amount * 100), // Convert to cents
+                'amount' => self::stripeAmount($amount, (string) $config['currency']),
                 'currency' => $config['currency'],
                 'metadata' => $metadata,
             ]);

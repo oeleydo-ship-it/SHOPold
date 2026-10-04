@@ -12,7 +12,7 @@ use Illuminate\Queue\SerializesModels;
 
 class NewOrderAdmin extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, \App\Mail\Concerns\RetriesDelivery;
 
     public function __construct(
         public Order $order

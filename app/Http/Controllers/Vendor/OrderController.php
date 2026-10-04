@@ -245,6 +245,7 @@ class OrderController extends Controller
     {
         // Reload order items
         $order->load('items');
+        $previous = $order->status;
 
         // Check if all items are delivered
         $allDelivered = $order->items->every(fn($item) => $item->fulfillment_status === 'delivered');
@@ -259,5 +260,7 @@ class OrderController extends Controller
         if ($allShipped && $order->status === 'processing') {
             $order->update(['status' => 'shipped']);
         }
+
+        \App\Support\OrderMailer::statusChanged($order, $previous);
     }
 }

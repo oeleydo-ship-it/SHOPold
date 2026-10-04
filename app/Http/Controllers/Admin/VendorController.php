@@ -81,10 +81,12 @@ class VendorController extends Controller
             'status' => 'required|in:pending,approved,suspended,rejected'
         ]);
 
+        $previous = $vendor->status;
         $vendor->update([
             'status' => $request->status,
             'approved_at' => $request->status === 'approved' ? now() : $vendor->approved_at
         ]);
+        \App\Support\PartnerMailer::vendorStatusChanged($vendor, $previous);
 
         return redirect()->back()->with('success', 'Vendor status updated!');
     }
@@ -159,6 +161,7 @@ class VendorController extends Controller
                     'id' => $p->id, 'vendor' => $p->vendor?->store_name, 'vendor_email' => $p->vendor?->email, 'vendor_logo' => $p->vendor?->logo_url,
                     'vendor_id' => $p->vendor_id, 'amount' => format_currency($p->amount), 'method' => $p->payment_method, 'status' => $p->status,
                     'transaction_id' => $p->transaction_id, 'notes' => $p->notes, 'date' => $p->created_at?->format('M d, Y'),
+                    'pay_to' => $p->payToLines(),
                 ])->values(),
                 'links' => $payouts->linkCollection()->toArray(), 'from' => $payouts->firstItem(), 'to' => $payouts->lastItem(), 'total' => $payouts->total(),
             ],
@@ -195,7 +198,9 @@ class VendorController extends Controller
             $updateData['processed_at'] = now();
         }
 
+        $previous = $payout->status;
         $payout->update($updateData);
+        \App\Support\PartnerMailer::payoutUpdated($payout, $previous);
 
         return redirect()->back()->with('success', 'Payout status updated!');
     }

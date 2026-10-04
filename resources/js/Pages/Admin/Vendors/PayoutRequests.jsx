@@ -22,6 +22,12 @@ function StatusModal({ payout, onClose }) {
                 <CardHeader title={`Update payout #${payout.id}`}><button type="button" onClick={onClose} aria-label="Close" className="text-muted hover:text-ink"><X size={18} /></button></CardHeader>
                 <form onSubmit={submit} className="space-y-4 p-4 md:p-6">
                     <p className="text-sm text-muted">{payout.vendor} · {payout.amount} · {methodLabel(payout.method)}</p>
+                    {payout.pay_to?.length > 0 && (
+                        <div className="rounded-lg bg-surface-2 p-3 text-sm">
+                            <p className="mb-1 text-xs font-semibold uppercase text-muted">Send to</p>
+                            {payout.pay_to.map((l) => <p key={l} className="select-all">{l}</p>)}
+                        </div>
+                    )}
                     <Field label="Status *" error={errors.status}><Select value={data.status} onChange={(e) => setData('status', e.target.value)}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select></Field>
                     <Field label="Transaction ID" error={errors.transaction_id}><Input value={data.transaction_id} onChange={(e) => setData('transaction_id', e.target.value)} /></Field>
                     <Field label="Notes" error={errors.notes}><Textarea rows={3} value={data.notes} onChange={(e) => setData('notes', e.target.value)} /></Field>

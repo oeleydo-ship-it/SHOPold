@@ -12,7 +12,7 @@ use Illuminate\Queue\SerializesModels;
 
 class WelcomeEmail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, \App\Mail\Concerns\RetriesDelivery;
 
     public function __construct(
         public User $user

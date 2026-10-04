@@ -7,7 +7,7 @@ import { deliveryStage } from '../../../Components/DriverOrderCard';
 import { Badge, Button, Card, CardHeader, Field, Textarea, buttonClass, titleCase } from '../../../Components/ui';
 
 function CompleteDelivery({ order }) {
-    const { data, setData, post, processing, errors, progress } = useForm({ proof_photo: null, signature: '', driver_notes: '' });
+    const { data, setData, post, processing, errors, progress } = useForm({ proof_photo: null, signature: '', driver_notes: '', cash_collected: false });
     const submit = (e) => {
         e.preventDefault();
         post(`/driver/orders/${order.id}/complete`, { forceFormData: true, preserveScroll: true });
@@ -29,8 +29,15 @@ function CompleteDelivery({ order }) {
                     {errors.signature && <p className="mt-1 text-xs text-danger">{errors.signature}</p>}
                 </div>
                 <Field label="Note (optional)" error={errors.driver_notes}><Textarea rows={2} maxLength={1000} value={data.driver_notes} onChange={(e) => setData('driver_notes', e.target.value)} placeholder="Left with the neighbour at no. 5…" /></Field>
+                {order.cod && (
+                    <label className="flex items-start gap-3 rounded-lg border border-warning/50 p-3 text-sm">
+                        <input type="checkbox" checked={data.cash_collected} onChange={(e) => setData('cash_collected', e.target.checked)} className="mt-0.5 h-5 w-5 accent-[var(--primary)]" />
+                        <span>I collected <strong>{order.total}</strong> in cash from the customer.</span>
+                    </label>
+                )}
+                {errors.cash_collected && <p className="text-xs text-danger">{errors.cash_collected}</p>}
                 {progress && <progress value={progress.percentage} max="100" className="w-full" />}
-                <Button type="submit" tone="success" disabled={processing} className="w-full justify-center py-3 text-base"><CheckCircle2 size={20} />{processing ? 'Saving…' : 'Mark as delivered'}</Button>
+                <Button type="submit" tone="success" disabled={processing || (order.cod && !data.cash_collected)} className="w-full justify-center py-3 text-base"><CheckCircle2 size={20} />{processing ? 'Saving…' : 'Mark as delivered'}</Button>
             </form>
         </Card>
     );

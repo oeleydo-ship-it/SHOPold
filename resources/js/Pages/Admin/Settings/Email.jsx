@@ -7,16 +7,22 @@ import { Badge, Button, Field, Input, Select } from '../../../Components/ui';
 import { SaveButton, SettingsCard, SwitchRow } from '../../../Components/settingsUi';
 import { useSettings } from '../../../lib/settings';
 import { jsonRequest } from '../../../lib/http';
+import QueueStatus from '../../../Components/QueueStatus';
 
 const NOTIFICATIONS = [
     ['email.order_confirmation', 'Order Confirmation', 'Send confirmation email when order is placed'],
     ['email.order_shipped', 'Order Shipped', 'Notify customer when order is shipped'],
     ['email.order_delivered', 'Order Delivered', 'Notify customer when order is delivered'],
+    ['email.order_status_updates', 'Other Status Updates', 'Notify customer about other status changes (processing, ready for pickup, cancelled...)'],
     ['email.admin_new_order', 'Admin: New Order Alert', 'Notify admin when new order is placed'],
     ['email.welcome_email', 'Welcome Email', 'Send welcome email to new customers'],
     ['email.password_reset', 'Password Reset', 'Send password reset emails'],
+    ['email.vendor_new_order', 'Vendor: New Order', 'Email each vendor their items when an order includes their products'],
+    ['email.vendor_status', 'Vendor: Store Approved / Rejected', 'Email vendors when their store is approved, rejected or suspended'],
+    ['email.vendor_payout', 'Vendor: Payout Sent / Failed', 'Email vendors when a payout is completed or fails'],
+    ['email.driver_assigned', 'Driver: New Delivery', 'Email drivers when a delivery is assigned to them'],
 ];
-const BOOLEANS = NOTIFICATIONS.map(([k]) => k);
+const BOOLEANS = [...NOTIFICATIONS.map(([k]) => k), 'email.queue_enabled'];
 const SECRETS = ['email.smtp_password', 'email.resend_api_key'];
 
 const PRESETS = {
@@ -62,7 +68,7 @@ function TestEmail() {
     );
 }
 
-export default function Email({ values, secrets: stored }) {
+export default function Email({ values, secrets: stored, queue }) {
     const { data, set, secrets, setSecret, clearSecret, submit, processing } = useSettings('email', values, BOOLEANS, SECRETS);
     const f = (k) => ({ value: data[k] ?? '', onChange: (e) => set(k, e.target.value) });
     const resend = data['email.driver'] === 'resend';
@@ -155,6 +161,14 @@ export default function Email({ values, secrets: stored }) {
                         <Field label="From Email Address"><Input type="email" placeholder="noreply@yourstore.com" {...f('email.from_address')} /></Field>
                         <Field label="Reply-To Email"><Input type="email" placeholder="support@yourstore.com" {...f('email.reply_to')} /></Field>
                         <Field label="Admin Email (for notifications)"><Input type="email" placeholder="admin@yourstore.com" {...f('email.admin_email')} /></Field>
+                    </div>
+                </SettingsCard>
+
+                <SettingsCard title="Background Sending" description="Send emails from a background worker so checkout never waits for the mail server, and failed emails are retried.">
+                    <div className="space-y-3">
+                        <SwitchRow title="Send emails in the background" description="Needs the scheduler running every minute (scriptsun-scheduler.bat, see the README). Leave off until it is set up."
+                            checked={data['email.queue_enabled']} onChange={(v) => set('email.queue_enabled', v)} />
+                        <QueueStatus queue={queue} showLink />
                     </div>
                 </SettingsCard>
 

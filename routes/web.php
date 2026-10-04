@@ -502,6 +502,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
             Route::get('/social', [SettingController::class, 'social'])->name('social');
             Route::get('/features', [SettingController::class, 'features'])->name('features');
             Route::get('/email', [SettingController::class, 'email'])->name('email');
+            Route::get('/email/failed', [\App\Http\Controllers\Admin\FailedEmailController::class, 'index'])->name('failed-emails.index');
+            Route::post('/email/failed/retry', [\App\Http\Controllers\Admin\FailedEmailController::class, 'retry'])->name('failed-emails.retry');
+            Route::delete('/email/failed', [\App\Http\Controllers\Admin\FailedEmailController::class, 'destroy'])->name('failed-emails.destroy');
             Route::get('/system', [SettingController::class, 'system'])->name('system');
             Route::get('/navigation', [SettingController::class, 'navigation'])->name('navigation');
             Route::get('/ai', [SettingController::class, 'ai'])->name('ai');

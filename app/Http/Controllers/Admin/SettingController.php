@@ -390,7 +390,9 @@ class SettingController extends Controller
             'email.reply_to' => '', 'email.admin_email' => '',
             'email.order_confirmation' => true, 'email.order_shipped' => true, 'email.order_delivered' => true,
             'email.admin_new_order' => true, 'email.welcome_email' => true, 'email.password_reset' => true,
-        ], [], ['email.smtp_password', 'email.resend_api_key']);
+            'email.order_status_updates' => true, 'email.queue_enabled' => false,
+            'email.vendor_new_order' => true, 'email.vendor_status' => true, 'email.vendor_payout' => true, 'email.driver_assigned' => true,
+        ], ['queue' => \App\Support\MailQueue::status()], ['email.smtp_password', 'email.resend_api_key']);
     }
 
     /**
@@ -759,7 +761,8 @@ class SettingController extends Controller
             'features.ai_chat_enabled', 'features.ai_ssl_verify', 'features.driver_portal', 'features.localization_enabled',
             'features.multi_currency', 'features.live_currency_converter',
             'email.order_confirmation', 'email.order_shipped', 'email.admin_new_order',
-            'email.order_delivered', 'email.welcome', 'email.password_reset',
+            'email.order_delivered', 'email.welcome_email', 'email.password_reset', 'email.order_status_updates', 'email.queue_enabled',
+            'email.vendor_new_order', 'email.vendor_status', 'email.vendor_payout', 'email.driver_assigned',
             'system.maintenance_mode', 'system.allow_registration', 'system.require_email_verification',
             'theme.dark_mode', 'theme.sticky_header', 'theme.show_topbar',
             'theme.show_features', 'theme.show_categories', 'theme.show_featured',

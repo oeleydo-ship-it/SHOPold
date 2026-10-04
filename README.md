@@ -105,6 +105,20 @@ A comprehensive e-commerce application built with Laravel 12: a themeable Blade 
 - Email: `customer@shop.com`
 - Password: `password`
 
+## Background email
+
+Emails are sent while the customer waits unless **Admin > Settings > Email > Send emails in the background** is on. Then they go to a database queue, are retried 3 times (after 1 and 5 minutes), and anything that still fails appears under **Settings > Email > Failed emails** with Retry / Remove.
+
+The queue needs the scheduler running every minute:
+
+- **Windows:** schedule `scripts\run-scheduler.bat` (one-off, in a Command Prompt):
+  ```
+  schtasks /Create /SC MINUTE /MO 1 /TN "Shop scheduler" /TR "\"C:\Program Files\Ampps\www\shop\scripts\run-scheduler.bat\""
+  ```
+- **Linux:** cron `* * * * * cd /path/to/shop && php artisan schedule:run >> /dev/null 2>&1`
+
+The Email settings page shows when the worker last ran; switch background sending on only after it shows a recent run.
+
 ## Tests
 
 Tests use Pest and run against a separate MySQL database, `shoping_test` (set in `phpunit.xml`; never point it at the live database). Create it once, then:

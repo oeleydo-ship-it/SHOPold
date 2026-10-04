@@ -22,11 +22,12 @@ class DriverService
         // Update driver status to busy
         $driver->update(['driver_status' => 'busy']);
 
-        // Send notification to driver
+        // Send notification to driver (in the portal and by email)
         $this->notifyDriver($driver, $order, 'new_order', 
             'New Delivery Assigned',
             "Order #{$order->order_number} has been assigned to you. Pickup from store and deliver to {$order->shipping_city}."
         );
+        \App\Support\PartnerMailer::driverAssigned($order, $driver);
     }
 
     /**

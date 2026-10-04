@@ -188,31 +188,8 @@ class OrderController extends Controller
             }
         }
 
-        // Send email notification if enabled
-        if (setting('email.order_notifications', true) && $previousStatus !== $newStatus) {
-            try {
-                $recipientEmail = $order->user ? $order->user->email : $order->shipping_email;
-                
-                if ($recipientEmail) {
-                    if ($newStatus === 'ready_for_pickup') {
-                        Mail::to($recipientEmail)->send(new OrderReadyForPickup($order));
-                        Log::info('Order ready for pickup email sent for order: ' . $order->order_number);
-                    } elseif ($newStatus === 'shipped') {
-                        Mail::to($recipientEmail)->send(new OrderShipped($order));
-                        Log::info('Order shipped email sent for order: ' . $order->order_number);
-                    } elseif ($newStatus === 'delivered') {
-                        Mail::to($recipientEmail)->send(new OrderDelivered($order));
-                        Log::info('Order delivered email sent for order: ' . $order->order_number);
-                    } else {
-                        Mail::to($recipientEmail)->send(new OrderStatusUpdated($order, $previousStatus));
-                        Log::info('Order status updated email sent for order: ' . $order->order_number);
-                    }
-                }
-            } catch (\Exception $e) {
-                // Log error but don't fail the request
-                Log::error('Failed to send order status email for order ' . $order->order_number . ': ' . $e->getMessage());
-            }
-        }
+        // Customer email for the new status (honours Settings > Email > Email Notifications)
+        \App\Support\OrderMailer::statusChanged($order, $previousStatus);
 
         return back()->with('success', 'Order status updated successfully!');
     }

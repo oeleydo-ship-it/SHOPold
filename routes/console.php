@@ -124,3 +124,15 @@ Artisan::command('currency:update-rates {--base=}', function () {
     return 0;
 })->purpose('Fetch live exchange rates for enabled currencies');
 
+
+/*
+ * Background email worker. Run the scheduler every minute (Windows: scripts/run-scheduler.bat in Task Scheduler,
+ * Linux: cron "* * * * * php artisan schedule:run"). Each run records a heartbeat, then sends whatever is queued
+ * and exits; nothing is queued unless Settings > Email > "Send emails in the background" is on.
+ */
+\Illuminate\Support\Facades\Schedule::call(fn () => \App\Support\MailQueue::beat())
+    ->name('queue-heartbeat')->everyMinute();
+
+\Illuminate\Support\Facades\Schedule::command('queue:work --stop-when-empty --max-time=50 --tries=3')
+    ->name('send-queued-email')->everyMinute()->withoutOverlapping(5)
+    ->when(fn () => \App\Support\MailQueue::enabled());
