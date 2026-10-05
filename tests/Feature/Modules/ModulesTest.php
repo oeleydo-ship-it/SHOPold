@@ -67,15 +67,16 @@ test('endpoints of a switched-off module return 404', function (string $module, 
 
 test('switched-off modules disappear from the storefront', function () {
     $this->actingAs($this->customer);
-    $page = fn () => $this->get("/shop/{$this->product->slug}")->assertOk()->getContent();
+    // the React pages show wishlist buttons, the review form and newsletter forms from these flags
+    $page = fn () => $this->inertia('GET', "/shop/{$this->product->slug}")->assertOk();
 
-    expect($page())->toContain('/account/wishlist" method="POST"')->toContain("/shop/{$this->product->id}/review");
+    expect($page()->json('props.sf.features.wishlist'))->toBeTrue()->and($page()->json('props.options.reviewsEnabled'))->toBeTrue();
     module('wishlist', false);
     module('reviews', false);
-    expect($page())->not->toContain('/account/wishlist" method="POST"')->not->toContain("/shop/{$this->product->id}/review");
+    expect($page()->json('props.sf.features.wishlist'))->toBeFalse()->and($page()->json('props.options.reviewsEnabled'))->toBeFalse();
 
     module('newsletter', true);
-    expect($this->get('/')->getContent())->toContain('id="newsletterForm"');
+    expect($this->inertia('GET', '/')->json('props.sf.features.newsletter'))->toBeTrue();
     module('newsletter', false);
-    expect($this->get('/')->getContent())->not->toContain('id="newsletterForm"');
+    expect($this->inertia('GET', '/')->json('props.sf.features.newsletter'))->toBeFalse();
 });

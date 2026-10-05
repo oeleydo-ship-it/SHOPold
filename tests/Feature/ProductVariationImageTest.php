@@ -62,24 +62,11 @@ test('product show page includes variation data with images', function () {
     $redVariation->attributeValues()->attach($redValue->id, ['attribute_id' => $colorAttribute->id]);
     $blueVariation->attributeValues()->attach($blueValue->id, ['attribute_id' => $colorAttribute->id]);
     
-    // Visit the product page
-    $response = $this->get(route('shop.show', $product->slug));
-    
-    $response->assertStatus(200);
-    
-    // Check that variation data is included in the page
-    $response->assertSee('productVariations');
-    
-    // Check that variation images are included
-    $response->assertSee('red-variant.jpg');
-    $response->assertSee('blue-variant.jpg');
-    
-    // Check that variation selector is present
-    $response->assertSee('variationSelector()');
-    
-    // Check that image update functionality is present
-    $response->assertSee('variation-changed');
-    $response->assertSee('updateImageForVariation');
+    // Visit the product page: the React page gets each variation with its image (the gallery switches to it)
+    $variations = collect($this->inertia('GET', route('shop.show', $product->slug))->assertOk()->json('props.product.variations'));
+
+    expect($variations->pluck('image')->all())->toBe([asset('storage/products/red-variant.jpg'), asset('storage/products/blue-variant.jpg')])
+        ->and($variations->pluck('values')->all())->toBe([[$redValue->id], [$blueValue->id]]);
 });
 
 test('product show page handles variations without images', function () {

@@ -42,16 +42,13 @@ test('spam trap, missing fields, closed comments and floods are refused', functi
     expect($statuses)->toContain(429);
 });
 
-test('only approved comments are shown, in every theme', function () {
-    $pending = $this->post->comments()->create(['author_name' => 'Pending', 'author_email' => 'p@example.test', 'content' => 'zz pending text', 'status' => 'pending']);
-    $approved = $this->post->comments()->create(['author_name' => 'Approved', 'author_email' => 'a@example.test', 'content' => 'zz approved <text>', 'status' => 'approved']);
+test('only approved comments are shown', function () {
+    $this->post->comments()->create(['author_name' => 'Pending', 'author_email' => 'p@example.test', 'content' => 'zz pending text', 'status' => 'pending']);
+    $this->post->comments()->create(['author_name' => 'Approved', 'author_email' => 'a@example.test', 'content' => 'zz approved <text>', 'status' => 'approved']);
 
-    foreach (['default', 'modern', 'starter'] as $theme) {
-        app(ThemeService::class)->setActive($theme);
-        $this->get("/blog/{$this->post->slug}")->assertOk()
-            ->assertSee('zz approved &lt;text&gt;', false)
-            ->assertDontSee('zz pending text');
-    }
+    // sent as plain text (React escapes it), never as HTML
+    $list = $this->inertia('GET', "/blog/{$this->post->slug}")->assertOk()->json('props.comments.list');
+    expect(collect($list)->pluck('content')->all())->toBe(['zz approved <text>']);
 });
 
 test('editors moderate comments; managers cannot', function () {

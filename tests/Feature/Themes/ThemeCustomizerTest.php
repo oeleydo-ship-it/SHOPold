@@ -47,11 +47,11 @@ test('customizer values are validated and saved per theme', function () {
 test('the storefront follows the activated theme and its own customizer values', function () {
     $this->themes->setActive('modern');
     $this->themes->saveOptions('modern', ['primary_color' => '#112233']);
-    $this->get('/')->assertOk()->assertSee("500: '#112233'", false);
+    $this->get('/')->assertOk()->assertSee('--sf-primary-500:#112233', false);
 
     $this->themes->setActive('starter');
     Setting::overlay([]);
-    $this->get('/')->assertOk()->assertSee("500: '#059669'", false)->assertDontSee('#112233', false);
+    $this->get('/')->assertOk()->assertSee('--sf-primary-500:#059669', false)->assertDontSee('#112233', false);
 });
 
 test('a theme preview is visible only to the admin who started it', function () {

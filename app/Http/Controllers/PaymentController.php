@@ -459,14 +459,21 @@ class PaymentController extends Controller
         if (!empty($result['id'])) {
             $order->update(['transaction_id' => $result['id']]);
             
-            // Return view with Razorpay checkout
-            return view('payment.razorpay', [
-                'order' => $order,
-                'razorpayOrderId' => $result['id'],
-                'keyId' => $config['key_id'],
-                'amount' => (int) ($order->total * 100),
-                'currency' => strtoupper($config['currency'] ?: 'INR'),
-                'storeName' => setting('store.name', config('app.name')),
+            // Razorpay's checkout window (key_id is Razorpay's public key)
+            return \Inertia\Inertia::render('Storefront/Payment/Razorpay', [
+                'order' => ['number' => $order->order_number, 'total' => format_currency($order->total)],
+                'checkout' => [
+                    'key' => $config['key_id'],
+                    'amount' => (int) round($order->total * 100),
+                    'currency' => strtoupper($config['currency'] ?: 'INR'),
+                    'name' => setting('store.name', config('app.name')),
+                    'description' => 'Order #' . $order->order_number,
+                    'order_id' => $result['id'],
+                    'prefill' => ['name' => $order->shipping_name, 'email' => $order->shipping_email, 'contact' => (string) ($order->shipping_phone ?? '')],
+                ],
+                'callbackUrl' => route('payment.razorpay.callback'),
+                'cancelUrl' => route('payment.cancelled'),
+                'seo' => ['title' => 'Complete Payment', 'robots' => 'noindex'],
             ]);
         }
 

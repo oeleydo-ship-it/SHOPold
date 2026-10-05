@@ -38,14 +38,21 @@ class PageController extends Controller
 
     protected function renderPage(Page $page)
     {
-        // Choose template based on page setting
-        $template = 'pages.templates.' . $page->template;
-        
-        // Fallback to default if template doesn't exist
-        if (!view()->exists($template)) {
-            $template = 'pages.templates.default';
-        }
-        
-        return view($template, compact('page'));
+        return \Inertia\Inertia::render('Storefront/Page', [
+            'page' => [
+                'title' => $page->translated_title,
+                'excerpt' => $page->excerpt,
+                'image' => $page->featured_image ? $page->featured_image_url : null,
+                // CMS HTML, sanitised; same-site POST forms get the CSRF token added
+                'content' => safe_page_html($page->translated_content ?? $page->content),
+                'template' => $page->template === 'full-width' ? 'full-width' : 'default',
+            ],
+            'seo' => [
+                'title' => (string) ($page->getTranslatedAttribute('meta_title') ?? $page->translated_title),
+                'description' => (string) ($page->getTranslatedAttribute('meta_description') ?? $page->excerpt ?? ''),
+                'image' => $page->featured_image ? $page->featured_image_url : null,
+                'canonical' => url()->current(),
+            ],
+        ]);
     }
 }

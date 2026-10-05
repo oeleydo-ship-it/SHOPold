@@ -83,11 +83,13 @@ class CheckoutController extends Controller
         // Get active pickup locations
         $pickupLocations = PickupLocation::active()->get();
 
-        return view('checkout.index', compact(
+        $data = compact(
             'cart', 'subtotal', 'discount', 'shipping', 'tax', 'total', 
             'coupon', 'shippingMethods', 'defaultShipping',
             'isGuest', 'guestOtpRequired', 'guestEmailVerified', 'pickupLocations'
-        ));
+        );
+
+        return \Inertia\Inertia::render('Storefront/Checkout', \App\Support\CheckoutPage::checkout($data));
     }
     
     /**
@@ -105,9 +107,12 @@ class CheckoutController extends Controller
         
         $shippingMethods = ShippingZone::getMethodsForCountry($countryCode);
         
-        $methods = $shippingMethods->map(function($method) use ($subtotal) {
+        $taxRate = (float) setting('payment.tax_rate', 10) / 100;
+        $methods = $shippingMethods->map(function($method) use ($subtotal, $discount, $taxRate) {
             return [
                 'id' => $method->id,
+                'deliveryTime' => $method->delivery_time,
+                'total_formatted' => format_currency($subtotal - $discount + $method->calculateCost($subtotal) + ($subtotal - $discount) * $taxRate),
                 'name' => $method->name,
                 'description' => $method->description,
                 'cost' => $method->calculateCost($subtotal),
@@ -414,14 +419,20 @@ class CheckoutController extends Controller
                 // Store order in session for payment callback
                 session(['pending_payment_order_id' => $order->id]);
                 
-                return match($request->payment_method) {
-                    'paystack' => redirect()->route('payment.paystack.init', $order),
-                    'flutterwave' => redirect()->route('payment.flutterwave.init', $order),
-                    'sslcommerz' => redirect()->route('payment.sslcommerz.init', $order),
-                    'bkash' => redirect()->route('payment.bkash.init', $order),
-                    'razorpay' => redirect()->route('payment.razorpay.init', $order),
-                    default => redirect()->route('checkout.success', $order)->with('info', 'Please complete payment using ' . ucfirst($request->payment_method)),
+                $gateway = match($request->payment_method) {
+                    'paystack' => route('payment.paystack.init', $order),
+                    'flutterwave' => route('payment.flutterwave.init', $order),
+                    'sslcommerz' => route('payment.sslcommerz.init', $order),
+                    'bkash' => route('payment.bkash.init', $order),
+                    'razorpay' => route('payment.razorpay.init', $order),
+                    default => null,
                 };
+                if (!$gateway) {
+                    return redirect()->route('checkout.success', $order)->with('info', 'Please complete payment using ' . ucfirst($request->payment_method));
+                }
+
+                // The React checkout posts with Inertia: leave the app with a full page load so the gateway page can run.
+                return $request->header('X-Inertia') ? \Inertia\Inertia::location($gateway) : redirect($gateway);
             }
 
             return redirect()->route('checkout.success', $order)->with('success', 'Order placed successfully!');
@@ -460,13 +471,8 @@ class CheckoutController extends Controller
                 abort(403);
             }
         }
-        
-        // Check if we should offer account creation
-        $offerAccountCreation = !auth()->check() && 
-                                setting('features.guest_create_account_option', true) &&
-                                !session('account_creation_declined');
 
-        return view('checkout.success', compact('order', 'offerAccountCreation'));
+        return \Inertia\Inertia::render('Storefront/CheckoutSuccess', \App\Support\CheckoutPage::success($order));
     }
     
     /**

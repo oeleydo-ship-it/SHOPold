@@ -1,6 +1,6 @@
 # Laravel Shop - E-Commerce Application
 
-A comprehensive e-commerce application built with Laravel 12: a themeable Blade + Tailwind storefront, and React (Inertia) apps for the admin, vendor and driver portals.
+A comprehensive e-commerce application built with Laravel 12 and React (Inertia): a themeable, server-rendered storefront and apps for the admin, vendor and driver portals.
 
 ## Features
 
@@ -14,7 +14,8 @@ A comprehensive e-commerce application built with Laravel 12: a themeable Blade 
 - ⭐ Product reviews and ratings
 - 🎫 Coupon/discount code support
 
-- 🎨 Multiple storefront themes (default, modern, starter) with a live customizer; each theme can override any page
+- 🎨 Multiple storefront themes (default, modern, starter) with a live customizer; see `resources/views/themes/README.md`
+- 🔎 Server-side rendering, `/sitemap.xml`, `/robots.txt` and resized WebP product images (`/img/{width}/{path}`)
 - 🏪 Vendor store pages and a customer helpdesk, both following the active theme
 - ✉️ Branded emails (store logo, name and the active theme's colour)
 
@@ -119,6 +120,16 @@ The queue needs the scheduler running every minute:
 
 The Email settings page shows when the worker last ran; switch background sending on only after it shows a recent run.
 
+## Storefront server-side rendering
+
+Storefront pages are rendered on the server for search engines and a fast first paint. `npm run build` builds both the browser and the server bundle (`bootstrap/ssr`). In production keep the render server running (for example with a process manager):
+
+```bash
+php artisan inertia:start-ssr
+```
+
+`php artisan inertia:check-ssr` reports whether it is up. Without it, pages still work: they render in the browser, and the HTML shell still prints the title, description and canonical tags.
+
 ## Tests
 
 Tests use Pest and run against a separate MySQL database, `shoping_test` (set in `phpunit.xml`; never point it at the live database). Create it once, then:
@@ -146,10 +157,13 @@ shop/
 │   └── views/
 │       ├── admin/               # Print/PDF documents (invoice, shipping label)
 │       ├── emails/              # Branded emails (layouts/branded + partials)
-│       ├── themes/<slug>/       # Storefront theme overrides + theme.json
-│       ├── layouts/             # Storefront layout templates
-│       └── ...                  # Shared storefront views
+│       ├── themes/<slug>/       # Storefront theme manifests (theme.json) + theme guide
+│       ├── storefront.blade.php # HTML shell of the storefront (SEO tags, theme CSS, analytics)
+│       └── app.blade.php        # HTML shell of the admin / vendor / driver apps
+│   ├── css/storefront*.css      # Storefront Tailwind build + theme skins
 │   └── js/
+│       ├── Pages/Storefront/    # Storefront pages (Inertia, server-rendered)
+│       ├── Storefront/          # Storefront layout, header, footer, cards, theme registry
 │       ├── Pages/Admin|Vendor|Driver/   # React pages (Inertia)
 │       ├── Layouts/             # AdminLayout, PortalLayout (vendor/driver)
 │       └── Components/          # Shared UI
@@ -165,7 +179,7 @@ shop/
 ## Technologies Used
 
 - **Backend**: Laravel 12
-- **Storefront**: Blade, Tailwind CSS (via CDN), Alpine.js, Font Awesome 6
+- **Storefront**: Inertia + React 19 with server-side rendering, Vite, Tailwind CSS 4, lucide icons
 - **Admin / vendor / driver**: Inertia + React 19, Vite, Tailwind CSS 4, lucide icons
 - **PDF**: barryvdh/laravel-dompdf
 - **Tests**: Pest

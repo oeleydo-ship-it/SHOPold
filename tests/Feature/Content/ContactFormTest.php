@@ -21,7 +21,7 @@ beforeEach(function () {
 
 test('the contact form shows with the session token and submits, in every theme', function (string $theme) {
     app(ThemeService::class)->setActive($theme);
-    $html = $this->get('/contact')->assertOk()->getContent();
+    $html = $this->inertia('GET', '/contact')->assertOk()->json('props.page.content');
 
     expect($html)->toContain('<form action="/contact" method="POST" class="mt-8">')
         ->toContain('name="_token" value="' . session()->token() . '"')

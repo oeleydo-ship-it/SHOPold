@@ -18,7 +18,10 @@ class AuthController extends Controller
 {
     public function showLoginForm()
     {
-        return view('auth.login');
+        return \Inertia\Inertia::render('Storefront/Auth/Login', [
+            'allowRegistration' => (bool) setting('system.allow_registration', true),
+            'seo' => ['title' => 'Login', 'robots' => 'noindex'],
+        ]);
     }
 
     public function login(Request $request)
@@ -31,11 +34,14 @@ class AuthController extends Controller
         $credentials = $request->only('email', 'password');
         $remember = $request->boolean('remember');
 
+        // The guest cart is keyed by the session id, which changes when the session is regenerated below.
+        $guestSessionId = $request->session()->getId();
+
         if (Auth::attempt($credentials, $remember)) {
             $request->session()->regenerate();
             
             // Merge guest cart with user cart
-            $this->mergeGuestCart();
+            $this->mergeGuestCart($guestSessionId);
 
             if (Auth::user()->is_admin) {
                 return redirect()->intended(route('admin.dashboard'));
@@ -57,7 +63,9 @@ class AuthController extends Controller
                 ->with('error', 'Registration is currently disabled. Please contact the administrator.');
         }
         
-        return view('auth.register');
+        return \Inertia\Inertia::render('Storefront/Auth/Register', [
+            'seo' => ['title' => 'Create Account', 'robots' => 'noindex'],
+        ]);
     }
 
     public function register(Request $request)
@@ -116,7 +124,10 @@ class AuthController extends Controller
             return redirect()->route('home');
         }
 
-        return view('auth.verify-email');
+        return \Inertia\Inertia::render('Storefront/Auth/VerifyEmail', [
+            'email' => auth()->user()->email,
+            'seo' => ['title' => 'Verify Email', 'robots' => 'noindex'],
+        ]);
     }
 
     /**
@@ -218,22 +229,24 @@ class AuthController extends Controller
         return redirect()->route('home');
     }
 
-    protected function mergeGuestCart()
+    protected function mergeGuestCart(?string $sessionId = null)
     {
-        $sessionId = session()->getId();
+        $sessionId ??= session()->getId();
         $guestCart = Cart::where('session_id', $sessionId)->first();
         
         if ($guestCart && $guestCart->items->count() > 0) {
             $userCart = Cart::firstOrCreate(['user_id' => auth()->id()]);
             
             foreach ($guestCart->items as $item) {
-                $existingItem = $userCart->items()->where('product_id', $item->product_id)->first();
+                $existingItem = $userCart->items()->where('product_id', $item->product_id)
+                    ->where('product_variation_id', $item->product_variation_id)->first();
                 
                 if ($existingItem) {
                     $existingItem->increment('quantity', $item->quantity);
                 } else {
                     $userCart->items()->create([
                         'product_id' => $item->product_id,
+                        'product_variation_id' => $item->product_variation_id,
                         'quantity' => $item->quantity,
                     ]);
                 }

@@ -29,7 +29,6 @@ class ThemeController extends Controller
                     'swatches' => array_values(array_filter([$values['primary_color'] ?? null, $values['secondary_color'] ?? null, $values['accent_color'] ?? null])),
                     'fonts' => [$values['heading_font'] ?: ($values['font_family'] ?? ''), $values['font_family'] ?? ''],
                     'customized' => count($this->themes->savedOptions($slug)) > 0,
-                    'overrides' => $this->overrideCount($slug),
                 ];
             })->values(),
             'previewing' => $this->themes->previewSlug(),
@@ -135,13 +134,5 @@ class ThemeController extends Controller
     protected function themeOrFail(string $theme): void
     {
         abort_unless($this->themes->exists($theme), 404);
-    }
-
-    /** Number of storefront views this theme replaces. */
-    protected function overrideCount(string $slug): int
-    {
-        $dir = resource_path("views/themes/{$slug}");
-
-        return collect(File::exists($dir) ? File::allFiles($dir) : [])->filter(fn ($f) => str_ends_with($f->getFilename(), '.blade.php'))->count();
     }
 }

@@ -12,11 +12,11 @@ beforeEach(function () {
     Notification::fake();
 });
 
-test('login and register forms keep the same fields in every theme', function (string $theme) {
+test('login and register are React pages in every theme', function (string $theme) {
     app(ThemeService::class)->setActive($theme);
 
-    $this->get('/login')->assertOk()->assertSee('name="email"', false)->assertSee('name="password"', false);
-    $this->get('/register')->assertOk()->assertSee('name="name"', false)->assertSee('name="password_confirmation"', false);
+    $this->inertia('GET', '/login')->assertOk()->assertJsonPath('component', 'Storefront/Auth/Login')->assertJsonPath('props.allowRegistration', true);
+    $this->inertia('GET', '/register')->assertOk()->assertJsonPath('component', 'Storefront/Auth/Register');
 })->with(['default', 'modern', 'starter']);
 
 test('wrong password is refused and the right one signs in', function () {

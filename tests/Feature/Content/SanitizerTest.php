@@ -33,8 +33,10 @@ test('stored HTML is sanitised on every storefront page that prints it, in every
     $page = Page::create(['title' => 'Zz', 'slug' => 'zz-page', 'content' => EVIL_HTML, 'template' => 'default', 'is_active' => true]);
     $wide = Page::create(['title' => 'Zz wide', 'slug' => 'zz-wide', 'content' => EVIL_HTML, 'template' => 'full-width', 'is_active' => true]);
 
-    foreach (["/shop/{$product->slug}", "/blog/{$post->slug}", "/page/{$page->slug}", "/page/{$wide->slug}"] as $uri) {
-        assertSanitised($this->get($uri)->assertOk()->getContent());
+    // the React pages print these props as HTML, so they must arrive sanitised
+    foreach (["/shop/{$product->slug}" => 'props.product.description', "/blog/{$post->slug}" => 'props.post.content',
+        "/page/{$page->slug}" => 'props.page.content', "/page/{$wide->slug}" => 'props.page.content'] as $uri => $prop) {
+        assertSanitised((string) $this->inertia('GET', $uri)->assertOk()->json($prop));
     }
 })->with(['default', 'modern', 'starter']);
 

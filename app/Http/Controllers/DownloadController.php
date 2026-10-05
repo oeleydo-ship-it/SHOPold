@@ -37,7 +37,32 @@ class DownloadController extends Controller
             }])
             ->get();
 
-        return view('account.downloads', compact('order', 'digitalItems'));
+        return \Inertia\Inertia::render('Storefront/Account/Downloads', [
+            'order' => ['number' => $order->order_number, 'url' => route('account.orders.show', $order)],
+            'items' => $digitalItems->map(function ($item) {
+                $expired = $item->download_expiry && now()->gt($item->download_expiry);
+                $used = $item->downloads_remaining !== null && $item->downloads_remaining <= 0;
+                $can = $item->canDownload();
+
+                return [
+                    'id' => $item->id,
+                    'name' => $item->product_name,
+                    'image' => $item->product?->image_url,
+                    'remaining' => $item->downloads_remaining,
+                    'expiry' => $item->download_expiry?->format('M d, Y'),
+                    'expired' => $expired,
+                    'reason' => $can ? null : ($used ? __('messages.download_limit_exceeded') : ($expired ? __('messages.download_expired') : __('messages.unavailable'))),
+                    'files' => ($item->product?->digitalFiles ?? collect())->map(fn ($f) => [
+                        'id' => $f->id,
+                        'name' => $f->name,
+                        'link' => $f->file_type === 'url',
+                        'size' => $f->file_type === 'upload' && $f->file_size ? $f->formatted_size : null,
+                        'url' => $can ? route('download.file', ['token' => $item->download_token, 'file' => $f->id]) : null,
+                    ])->values(),
+                ];
+            })->values(),
+            'seo' => \App\Support\AccountPage::seo(__('messages.downloads')),
+        ]);
     }
 
     /**

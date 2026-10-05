@@ -2,10 +2,13 @@ import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import inertia from '@inertiajs/vite';
 
 export default defineConfig({
     plugins: [
-        laravel({ input: ['resources/js/app.jsx'], refresh: true }),
+        // app.jsx = admin / vendor / driver; storefront.jsx = the shop (server-rendered through resources/js/ssr.jsx)
+        laravel({ input: ['resources/js/app.jsx', 'resources/js/storefront.jsx'], ssr: 'resources/js/ssr.jsx', refresh: true }),
+        inertia({ ssr: 'resources/js/ssr.jsx' }),
         react(),
         tailwindcss(),
     ],

@@ -50,4 +50,23 @@ class Countries
     'VE' => 'Venezuela', 'VN' => 'Vietnam', 'YE' => 'Yemen', 'ZM' => 'Zambia', 'ZW' => 'Zimbabwe'
         ];
     }
+
+    /** Names the checkout country field offers: one locked country, the allowed list (Settings > Shipping), or every country. */
+    public static function forCheckout(): array
+    {
+        if (setting('shipping.single_country_mode')) {
+            return [static::defaultName()];
+        }
+        $raw = setting('shipping.allowed_countries', '[]');
+        $allowed = is_array($raw) ? $raw : (json_decode((string) $raw, true) ?: []);
+        $list = $allowed ? array_intersect_key(static::all(), array_flip($allowed)) : static::all();
+        asort($list);
+
+        return array_values($list);
+    }
+
+    public static function defaultName(): string
+    {
+        return static::all()[setting('shipping.default_country', 'US')] ?? 'United States';
+    }
 }

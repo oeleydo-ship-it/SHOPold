@@ -1,0 +1,101 @@
+/*
+ * Theme skins for the React storefront. StoreLayout puts "sf-theme-<slug>" on the page wrapper; colours, fonts,
+ * corner radius and button shape already come from the theme options (StoreTheme::css). These rules add each
+ * theme's character on top, like the Blade themes' skin files did:
+ *   modern  - rounded, soft lifted cards, pill controls, gradient accents, frosted header
+ *   starter - flat and square, outlined boxes, uppercase buttons, underlined accents
+ * Rules are unlayered on purpose so they win over Tailwind utilities without !important.
+ */
+
+/* ---------------------------------------------------------------- modern */
+.sf-theme-modern {
+    --sf-gradient: linear-gradient(90deg, var(--sf-primary-600), var(--sf-accent-400, #f472b6));
+    --sf-soft-shadow: 0 12px 40px -20px rgb(17 24 39 / 0.25);
+}
+
+/* header: frosted glass, gradient accent line, pill navigation and search */
+.sf-theme-modern .sf-header.shadow-sm {
+    backdrop-filter: saturate(180%) blur(14px);
+    box-shadow: 0 8px 30px -12px rgb(17 24 39 / 0.18);
+}
+.sf-theme-modern .sf-header.shadow-sm:not(.sticky) { position: relative; }
+.sf-theme-modern .sf-header.shadow-sm::after {
+    content: ''; position: absolute; inset-inline: 0; bottom: 0; height: 3px; background: var(--sf-gradient);
+}
+.sf-theme-modern .sf-header .sf-nav-link { padding: 0.35rem 0.85rem; border-radius: 9999px; }
+.sf-theme-modern .sf-header .sf-nav-link:hover,
+.sf-theme-modern .sf-header .sf-nav-active { background: color-mix(in srgb, var(--sf-primary-600) 12%, transparent); }
+.sf-theme-modern .sf-header form[role="search"] :is(input, button) { border-radius: 9999px; }
+
+/* page content: rounder corners, soft shadows, pill controls */
+.sf-theme-modern main :is(.rounded-lg) { border-radius: 1rem; }
+.sf-theme-modern main :is(.rounded-xl, .rounded-2xl) { border-radius: 1.5rem; }
+.sf-theme-modern main .shadow-sm { box-shadow: var(--sf-soft-shadow); }
+.sf-theme-modern main :is(input:not([type=checkbox], [type=radio]), textarea, select) { border-radius: 0.9rem; }
+.sf-theme-modern main :is(select, input[type=search]) { border-radius: 9999px; }
+.sf-theme-modern main :is(a, button).bg-primary-600 { border-radius: 9999px; }
+.sf-theme-modern main :is(button[type=submit], a).bg-primary-600:not(.sf-card-cta) {
+    background: var(--sf-gradient); box-shadow: 0 10px 25px -12px var(--sf-primary-600);
+}
+.sf-theme-modern main h1 { font-weight: 800; letter-spacing: -0.02em; }
+.sf-theme-modern main section > div > div > span.rounded-full.uppercase { background: var(--sf-gradient); }
+.sf-theme-modern main article { transition: transform 0.25s, box-shadow 0.25s; }
+.sf-theme-modern main article:hover { transform: translateY(-4px); }
+.sf-theme-modern .account-page nav a[aria-current="page"] { background: var(--sf-gradient); color: #fff; }
+
+/* product card: lifted, gradient image tile, round badges and a floating action pill */
+.sf-theme-modern .sf-card { border-radius: 1.5rem; border-color: #f3f4f6; box-shadow: var(--sf-soft-shadow); }
+.sf-theme-modern .sf-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); }
+.sf-theme-modern .sf-card-media { background: linear-gradient(135deg, #f9fafb, color-mix(in srgb, var(--sf-primary-50) 60%, transparent)); }
+.sf-theme-modern .sf-card-media img { mix-blend-mode: multiply; }
+.sf-theme-modern .sf-card-badge { border-radius: 9999px; font-weight: 700; box-shadow: 0 1px 3px rgb(0 0 0 / 0.15); }
+.sf-theme-modern .sf-card-sale { background: linear-gradient(90deg, #f43f5e, #f97316); }
+.sf-theme-modern .sf-card-actions { bottom: 0.75rem; border: 0; background: transparent; padding: 0; }
+.sf-theme-modern .sf-card-actions-row { width: fit-content; margin-inline: auto; padding: 0.5rem 0.75rem; border-radius: 9999px; background: rgb(255 255 255 / 0.9); backdrop-filter: blur(8px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+.sf-theme-modern .sf-card-actions-row > * { border-radius: 9999px; }
+.sf-theme-modern .sf-card-price { font-weight: 800; }
+
+/* home features as raised cards with a gradient icon tile */
+.sf-theme-modern .sf-features .group { background: #fff; border: 1px solid #f3f4f6; border-radius: 1.5rem; box-shadow: var(--sf-soft-shadow); transition: transform 0.3s, box-shadow 0.3s; }
+.sf-theme-modern .sf-features .group:hover { transform: translateY(-2px); }
+.sf-theme-modern .sf-features .group > span { background: linear-gradient(135deg, var(--sf-primary-500), var(--sf-primary-700)); border-radius: 1rem; transition: transform 0.3s; }
+.sf-theme-modern .sf-features .group:hover > span { transform: rotate(6deg); }
+
+/* blog / content heroes */
+.sf-theme-modern .content-page > .relative.h-96 .bg-black\/40 { background: linear-gradient(135deg, color-mix(in srgb, var(--sf-primary-600) 70%, transparent), color-mix(in srgb, var(--sf-accent-400, #f472b6) 60%, transparent)); }
+
+/* ---------------------------------------------------------------- starter */
+.sf-theme-starter .sf-header.shadow-sm { box-shadow: none; border-bottom: 2px solid var(--sf-primary-600); }
+.sf-theme-starter .sf-header .sf-nav-link { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.8rem; font-weight: 600; }
+.sf-theme-starter .sf-header .sf-nav-active { text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 2px; }
+.sf-theme-starter .sf-header form[role="search"] :is(input, button, select) { border-radius: 0; }
+
+.sf-theme-starter main :is(.rounded, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl, input, select, textarea, button) { border-radius: 0; }
+.sf-theme-starter main :is(.shadow-sm, .shadow, .shadow-md, .shadow-lg, .shadow-xl) { box-shadow: none; }
+.sf-theme-starter main :is(.bg-white.shadow-sm, article) { border: 1px solid #d1d5db; }
+.sf-theme-starter main [class*="group-hover:scale"] { transform: none; }
+.sf-theme-starter main :is(button[type=submit], a.bg-primary-600, button.bg-primary-600, a.sf-btn) { text-transform: uppercase; letter-spacing: 0.05em; }
+.sf-theme-starter main .sticky.top-24 { position: static; }
+.sf-theme-starter main section > div > div > span.rounded-full.uppercase { background: transparent; color: var(--sf-primary-600); padding-inline-start: 0; letter-spacing: 0.12em; }
+.sf-theme-starter main h1 { padding-bottom: 0.35rem; }
+.sf-theme-starter main section h2.text-2xl { display: inline-block; padding-bottom: 0.35rem; border-bottom: 2px solid var(--sf-primary-600); }
+.sf-theme-starter .account-page nav a[aria-current="page"] { background: transparent; text-decoration: underline; text-underline-offset: 4px; font-weight: 700; }
+.sf-theme-starter .auth-page .text-center.mb-8 { text-align: start; }
+
+/* product card: flat and square with a simple outline */
+.sf-theme-starter .sf-card { border-radius: 0; border-color: #d1d5db; transition: border-color 0.2s; }
+.sf-theme-starter .sf-card:hover { border-color: var(--sf-primary-600); box-shadow: none; }
+.sf-theme-starter .sf-card-media img { transition: opacity 0.2s; }
+.sf-theme-starter .sf-card:hover .sf-card-media img { transform: none; opacity: 0.9; }
+.sf-theme-starter .sf-card-badge { border-radius: 0; text-transform: uppercase; }
+.sf-theme-starter .sf-card-sale { background: #dc2626; }
+.sf-theme-starter .sf-card-actions-row > * { border-radius: 0; border-color: #d1d5db; }
+.sf-theme-starter .sf-card-cta { border-radius: 0 !important; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* footer: plain links that underline on hover */
+.sf-theme-starter .sf-footer a { text-decoration: none; }
+.sf-theme-starter .sf-footer a:hover { text-decoration: underline; }
+
+/* shop / category title band */
+.sf-theme-modern .sf-shop-hero { background: linear-gradient(135deg, color-mix(in srgb, var(--sf-primary-600) 14%, #fff), color-mix(in srgb, var(--sf-accent-400, #f472b6) 14%, #fff)); border: 0; }
+.sf-theme-starter .sf-shop-hero { background: #fff; border-bottom: 2px solid var(--sf-primary-600); }

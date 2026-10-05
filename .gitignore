@@ -43,3 +43,6 @@ storage.zip
 Thumbs.db
 npm-debug.log
 yarn-error.log
+
+# Server-side rendering bundle (npm run build)
+/bootstrap/ssr

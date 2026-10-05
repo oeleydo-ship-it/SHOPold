@@ -28,7 +28,7 @@ class BlogController extends Controller
         $posts = $query->latest('published_at')->paginate(setting('features.blog_posts_per_page', 10));
         $categories = BlogCategory::where('is_active', true)->withCount('publishedPosts')->get();
 
-        return view('blog.index', compact('posts', 'categories'));
+        return \Inertia\Inertia::render('Storefront/Blog/Index', $this->listProps($posts, $categories));
     }
 
     public function show($slug)
@@ -50,7 +50,32 @@ class BlogController extends Controller
             ->limit(3)
             ->get();
 
-        return view('blog.show', compact('post', 'relatedPosts'));
+        return \Inertia\Inertia::render('Storefront/Blog/Show', [
+            'post' => $this->card($post) + [
+                'content' => safe_html($post->content),
+                'views' => number_format($post->views),
+                'longDate' => ($post->published_at ?? $post->created_at)?->format('F d, Y'),
+                'publishedIso' => ($post->published_at ?? $post->created_at)?->toIso8601String(),
+                'url' => route('blog.show', $post->slug),
+            ],
+            'related' => $relatedPosts->map(fn ($p) => $this->card($p))->values(),
+            'comments' => [
+                'open' => (bool) ($post->allow_comments && setting('features.blog_comments')),
+                'list' => $post->approvedComments->map(fn ($c) => [
+                    'id' => $c->id,
+                    'author' => $c->user->name ?? $c->author_name ?? 'Guest',
+                    'ago' => $c->created_at?->diffForHumans(),
+                    'content' => (string) $c->content,
+                ])->values(),
+            ],
+            'seo' => [
+                'title' => $post->meta_title ?: $post->title,
+                'description' => $post->meta_description ?: ($post->excerpt ?: \Illuminate\Support\Str::limit(strip_tags((string) $post->content), 160)),
+                'image' => $post->featured_image ? $post->image_url : null,
+                'canonical' => route('blog.show', $post->slug),
+                'type' => 'article',
+            ],
+        ]);
     }
 
     /**
@@ -98,6 +123,37 @@ class BlogController extends Controller
 
         $categories = BlogCategory::where('is_active', true)->withCount('publishedPosts')->get();
 
-        return view('blog.index', compact('posts', 'categories', 'category'));
+        return \Inertia\Inertia::render('Storefront/Blog/Index', $this->listProps($posts, $categories, $category));
+    }
+
+    /** Props for the React blog list (all posts, a search or one category). */
+    protected function listProps($posts, $categories, ?BlogCategory $category = null): array
+    {
+        return [
+            'posts' => $posts->through(fn ($p) => $this->card($p)),
+            'categories' => $categories->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'slug' => $c->slug, 'count' => (int) $c->published_posts_count])->values(),
+            'category' => $category ? ['id' => $category->id, 'name' => $category->name, 'description' => $category->description] : null,
+            'search' => (string) request('search', ''),
+            'newsletter' => (bool) setting('features.newsletter_enabled'),
+            'seo' => [
+                'title' => $category ? $category->name . ' - Blog' : 'Blog',
+                'description' => $category?->description ?: 'Stay updated with the latest news, tips, and insights',
+                'canonical' => $category ? route('blog.category', $category->slug) : route('blog.index'),
+            ],
+        ];
+    }
+
+    protected function card(BlogPost $p): array
+    {
+        return [
+            'id' => $p->id,
+            'slug' => $p->slug,
+            'title' => $p->title,
+            'excerpt' => $p->excerpt ?: \Illuminate\Support\Str::limit(strip_tags((string) $p->content), 150),
+            'image' => $p->featured_image ? $p->image_url : null,
+            'author' => $p->author->name ?? 'Admin',
+            'date' => ($p->published_at ?? $p->created_at)?->format('M d, Y'),
+            'category' => $p->category ? ['name' => $p->category->name, 'slug' => $p->category->slug] : null,
+        ];
     }
 }

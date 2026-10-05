@@ -53,7 +53,6 @@ export default function Index({ themes, previewing }) {
                             <div className="flex items-center gap-2 text-xs text-muted">
                                 <span className="flex gap-1" aria-label="Theme colors">{t.swatches.map((c) => <span key={c} title={c} className="h-4 w-4 rounded-full border border-line" style={{ background: c }} />)}</span>
                                 <span>{t.fonts[0] || t.fonts[1]}</span>
-                                {t.overrides > 0 && <span>· {t.overrides} custom template{t.overrides === 1 ? '' : 's'}</span>}
                             </div>
                             <div className="flex flex-wrap gap-2 pt-1">
                                 {!t.active && <Button onClick={() => activate(t)}><Palette size={16} />Activate</Button>}

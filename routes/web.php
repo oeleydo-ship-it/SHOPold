@@ -142,6 +142,12 @@ Route::post('/stripe/webhook', [\App\Http\Controllers\StripeWebhookController::c
 
 // Public Routes
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/sitemap.xml', [\App\Http\Controllers\SeoController::class, 'sitemap'])->name('sitemap');
+Route::get('/robots.txt', [\App\Http\Controllers\SeoController::class, 'robots'])->name('robots');
+// Resized WebP copies of public-storage images (fixed widths only)
+Route::get('/img/{width}/{path}', [\App\Http\Controllers\ImageController::class, 'show'])
+    ->whereNumber('width')->where('path', '.+')->name('image.resized')
+    ->withoutMiddleware('web'); // no session or cookies, so browsers and CDNs can cache the files
 Route::post('/contact', [HomeController::class, 'contactSubmit'])->name('contact.submit');
 Route::post('/newsletter/subscribe', [HomeController::class, 'newsletterSubscribe'])->name('newsletter.subscribe')->middleware('module:newsletter');
 

@@ -385,33 +385,7 @@
     
     @stack('styles')
     
-    <!-- Google Analytics -->
-    @if(!empty($appSettings['seo']['google_analytics']))
-    <script async src="https://www.googletagmanager.com/gtag/js?id={{ $appSettings['seo']['google_analytics'] }}"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', '{{ $appSettings['seo']['google_analytics'] }}');
-    </script>
-    @endif
-    
-    <!-- Facebook Pixel -->
-    @if(!empty($appSettings['seo']['facebook_pixel']))
-    <script>
-        !function(f,b,e,v,n,t,s)
-        {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-        n.queue=[];t=b.createElement(e);t.async=!0;
-        t.src=v;s=b.getElementsByTagName(e)[0];
-        s.parentNode.insertBefore(t,s)}(window, document,'script',
-        'https://connect.facebook.net/en_US/fbevents.js');
-        fbq('init', '{{ $appSettings['seo']['facebook_pixel'] }}');
-        fbq('track', 'PageView');
-    </script>
-    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id={{ $appSettings['seo']['facebook_pixel'] }}&ev=PageView&noscript=1"/></noscript>
-    @endif
+    @include('partials.analytics')
 </head>
 <!-- Maintenance Mode Check -->
 @if(!empty($appSettings['maintenance_mode']) && !request()->is('admin/*') && !request()->is('login') && !request()->is('register') && !request()->is('password/*') && !(auth()->check() && auth()->user()->is_admin))
@@ -743,73 +717,7 @@
     
     @stack('scripts')
     
-    {{-- Live Chat Widget --}}
-    @if(setting('features.live_chat_enabled'))
-        @php
-            $chatProvider = setting('features.chat_provider', 'custom');
-        @endphp
-        
-        @if($chatProvider === 'tawk')
-            @php
-                $tawkPropertyId = setting('features.tawk_property_id', '');
-                $tawkWidgetId = setting('features.tawk_widget_id', 'default');
-            @endphp
-            @if(!empty($tawkPropertyId))
-            <!--Start of Tawk.to Script-->
-            <script type="text/javascript">
-            var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
-            (function(){
-            var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
-            s1.async=true;
-            s1.src='https://embed.tawk.to/{{ $tawkPropertyId }}/{{ $tawkWidgetId }}';
-            s1.charset='UTF-8';
-            s1.setAttribute('crossorigin','*');
-            s0.parentNode.insertBefore(s1,s0);
-            })();
-            </script>
-            <!--End of Tawk.to Script-->
-            @endif
-        @elseif($chatProvider === 'crisp')
-            @php
-                $crispWebsiteId = setting('features.crisp_website_id', '');
-            @endphp
-            @if(!empty($crispWebsiteId))
-            <!-- Crisp Chat Widget -->
-            <script type="text/javascript">
-            window.$crisp=[];window.CRISP_WEBSITE_ID="{{ $crispWebsiteId }}";
-            (function(){
-            d=document;s=d.createElement("script");
-            s.src="https://client.crisp.chat/l.js";
-            s.async=1;d.getElementsByTagName("head")[0].appendChild(s);
-            })();
-            </script>
-            @endif
-        @elseif($chatProvider === 'intercom')
-            @php
-                $intercomAppId = setting('features.intercom_app_id', '');
-            @endphp
-            @if(!empty($intercomAppId))
-            <!-- Intercom Chat Widget -->
-            <script>
-            window.intercomSettings = {
-                api_base: "https://api-iam.intercom.io",
-                app_id: "{{ $intercomAppId }}"
-            };
-            </script>
-            <script>
-            (function(){var w=window;var ic=w.Intercom;if(typeof ic==="function"){ic('reattach_activator');ic('update',w.intercomSettings);}else{var d=document;var i=function(){i.c(arguments);};i.q=[];i.c=function(args){i.q.push(args);};w.Intercom=i;var l=function(){var s=d.createElement('script');s.type='text/javascript';s.async=true;s.src='https://widget.intercom.io/widget/{{ $intercomAppId }}';var x=d.getElementsByTagName('script')[0];x.parentNode.insertBefore(s,x);};if(document.readyState==='complete'){l();}else if(w.attachEvent){w.attachEvent('onload',l);}else{w.addEventListener('load',l,false);}}})();
-            </script>
-            @endif
-        @elseif($chatProvider === 'custom')
-            @php
-                $customChatCode = setting('features.custom_chat_code', '');
-            @endphp
-            @if(!empty($customChatCode))
-            <!-- Custom Chat Widget -->
-            {!! $customChatCode !!}
-            @endif
-        @endif
-    @endif
+    @include('partials.live-chat')
     
     {{-- AI Chat Widget --}}
     @include('components.ai-chat-widget')

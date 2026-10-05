@@ -22,31 +22,14 @@ beforeEach(function () {
     $this->actingAs($this->customer)->post('/cart/add', ['product_id' => $this->product->id, 'quantity' => 2]);
 });
 
-function checkoutFieldNames(string $html): array
-{
-    $form = substr($html, strpos($html, 'x-ref="checkoutForm"'));
-    $form = substr($form, 0, strpos($form, '</form>'));
-    preg_match_all('/name="([a-z_\[\]]+)"/', $form, $m);
-    $names = array_values(array_unique($m[1]));
-    sort($names);
-
-    return $names;
-}
-
-test('every theme shows the same checkout form with one form, one script and Place Order', function () {
-    $fields = [];
+test('every theme gets the same React checkout with the shipping form defaults', function () {
     foreach (['default', 'modern', 'starter'] as $theme) {
         app(ThemeService::class)->setActive($theme);
-        $html = $this->get('/checkout')->assertOk()->getContent();
+        $page = $this->inertia('GET', '/checkout')->assertOk()->assertJsonPath('component', 'Storefront/Checkout');
 
-        expect(substr_count($html, 'x-ref="checkoutForm"'))->toBe(1)
-            ->and(substr_count($html, 'function checkoutForm'))->toBe(1)
-            ->and($html)->toContain('x-data="checkoutForm()"')->toContain('Place Order');
-        $fields[$theme] = checkoutFieldNames($html);
+        expect(array_keys($page->json('props.defaults')))->toContain('shipping_name', 'shipping_email', 'shipping_country')
+            ->and(collect($page->json('props.payments'))->pluck('key')->all())->toContain('cod');
     }
-
-    expect($fields['modern'])->toBe($fields['default'])->and($fields['starter'])->toBe($fields['default'])
-        ->and($fields['default'])->toContain('shipping_name', 'shipping_email', 'payment_method');
 });
 
 test('a cash-on-delivery order is placed and confirmed in every theme', function () {
@@ -62,7 +45,7 @@ test('a cash-on-delivery order is placed and confirmed in every theme', function
 
     foreach (['default', 'modern', 'starter'] as $theme) {
         app(ThemeService::class)->setActive($theme);
-        $this->get("/checkout/success/{$order->id}")->assertOk()->assertSee($order->order_number)->assertSee('Cash on Delivery');
+        $this->get("/checkout/success/{$order->id}")->assertOk()->assertSee($order->order_number)->assertSee('Cash on Delivery'); // in the page data
     }
 
     $this->actingAs(customer())->get("/checkout/success/{$order->id}")->assertForbidden();

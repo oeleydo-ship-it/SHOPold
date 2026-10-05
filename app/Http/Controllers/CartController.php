@@ -27,28 +27,8 @@ class CartController extends Controller
     public function index()
     {
         $cart = Cart::getCart();
-        $cart->load('items.product.category.translations', 'items.product.translations', 'items.variation');
-        
-        // Collect cross-sell products from cart items
-        $crossSellProducts = collect();
-        $cartProductIds = $cart->items->pluck('product_id')->toArray();
-        
-        foreach ($cart->items as $item) {
-            if (!empty($item->product->cross_sell_products)) {
-                $crossSellProducts = $crossSellProducts->merge(
-                    Product::whereIn('id', $item->product->cross_sell_products)
-                        ->whereNotIn('id', $cartProductIds) // Exclude products already in cart
-                        ->active()
-                        ->with('translations')
-                        ->get()
-                );
-            }
-        }
-        
-        // Remove duplicates and limit to 4 products
-        $crossSellProducts = $crossSellProducts->unique('id')->take(4);
-        
-        return view('cart.index', compact('cart', 'crossSellProducts'));
+
+        return \Inertia\Inertia::render('Storefront/Cart', \App\Support\CheckoutPage::cart($cart));
     }
 
     public function add(Request $request)

@@ -14,7 +14,8 @@ class ShopController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::active()->inStock()->with(['category', 'brand', 'tags', 'translations']);
+        // ProductCards::with adds what the cards need (ratings, stock, translations) without a query per card.
+        $query = \App\Support\ProductCards::with(Product::active()->inStock()->with(['category', 'brand', 'tags', 'translations']));
 
         // Category filter
         if ($request->category) {
@@ -118,7 +119,46 @@ class ShopController extends Controller
         $brands = Brand::active()->withCount('products')->with('translations')->orderBy('name')->get();
         $tags = Tag::withCount('products')->orderBy('name')->get();
 
-        return view('shop.index', compact('products', 'categories', 'brands', 'tags', 'perPage', 'gridColumns', 'aiSearchUsed'));
+        $data = compact('products', 'categories', 'brands', 'tags', 'perPage', 'gridColumns', 'aiSearchUsed');
+
+        return \Inertia\Inertia::render('Storefront/Shop', [
+            'products' => $products->through(fn ($p) => \App\Support\ProductCards::card($p)),
+            'categories' => $this->categoryList($categories),
+            'filters' => [
+                'search' => (string) $request->query('search', ''),
+                'category' => (string) $request->query('category', ''),
+                'brand' => (string) $request->query('brand', ''),
+                'tag' => (string) $request->query('tag', ''),
+                'min_price' => (string) $request->query('min_price', ''),
+                'max_price' => (string) $request->query('max_price', ''),
+                'on_sale' => (bool) $request->query('on_sale'),
+                'sort' => (string) $request->query('sort', 'newest'),
+            ],
+            'priceLabel' => ($request->min_price || $request->max_price)
+                ? ($request->min_price ? format_currency((float) $request->min_price) : '0') . ' - ' . ($request->max_price ? format_currency((float) $request->max_price) : '∞')
+                : null,
+            'perPage' => (int) $perPage,
+            'gridColumns' => in_array((string) $gridColumns, ['2', '3', '4'], true) ? (string) $gridColumns : '4',
+            'aiSearchUsed' => $aiSearchUsed,
+            'options' => [
+                'showPerPage' => (bool) setting('shop.show_per_page', true),
+                'showGridOptions' => (bool) setting('shop.show_grid_options', true),
+                'descDesktop' => (bool) setting('shop.show_description_desktop', true),
+                'descMobile' => (bool) setting('shop.show_description_mobile', true),
+            ],
+            'seo' => [
+                'title' => $request->search ? __('messages.search') . ': ' . $request->search : __('messages.shop'),
+                'canonical' => route('shop.index', array_filter($request->only('category', 'brand', 'tag'))),
+            ],
+        ]);
+    }
+
+    /** Category list for filters and pills (name, slug, product count). */
+    protected function categoryList($categories): array
+    {
+        return $categories->map(fn ($c) => [
+            'id' => $c->id, 'name' => $c->translated_name, 'slug' => $c->slug, 'count' => (int) ($c->products_count ?? 0),
+        ])->values()->all();
     }
 
     public function show($slug)
@@ -179,19 +219,35 @@ class ShopController extends Controller
                 ->get();
         }
 
-        return view('shop.show', compact('product', 'relatedProducts', 'reviews', 'crossSellProducts', 'crossSellEnabled', 'crossSellTitle', 'aiRecommendations', 'aiReviewAnalysis'));
+        $data = compact('product', 'relatedProducts', 'reviews', 'crossSellProducts', 'crossSellEnabled', 'crossSellTitle', 'aiRecommendations', 'aiReviewAnalysis');
+
+        return \Inertia\Inertia::render('Storefront/Product', \App\Support\ProductPage::props($data));
     }
 
     public function category($slug)
     {
         $category = Category::where('slug', $slug)->active()->with('translations')->firstOrFail();
-        $products = Product::active()->inStock()
-            ->where('category_id', $category->id)
-            ->with(['category.translations', 'translations'])
+        $products = \App\Support\ProductCards::with(Product::active()->inStock()->where('category_id', $category->id))
             ->paginate(12);
         $categories = Category::active()->withCount('products')->with('translations')->get();
 
-        return view('shop.category', compact('category', 'products', 'categories'));
+        return \Inertia\Inertia::render('Storefront/Category', [
+            'category' => [
+                'id' => $category->id,
+                'name' => $category->translated_name,
+                'slug' => $category->slug,
+                'description' => $category->translated_description,
+                'image' => $category->image ? asset('storage/' . $category->image) : null,
+            ],
+            'products' => $products->through(fn ($p) => \App\Support\ProductCards::card($p)),
+            'categories' => $this->categoryList($categories),
+            'seo' => [
+                'title' => $category->translated_name,
+                'description' => \Illuminate\Support\Str::limit(strip_tags((string) $category->translated_description), 155),
+                'image' => $category->image ? asset('storage/' . $category->image) : null,
+                'canonical' => route('shop.category', $category->slug),
+            ],
+        ]);
     }
 
     public function vendor($slug)
@@ -200,12 +256,30 @@ class ShopController extends Controller
             ->where('status', 'approved')
             ->firstOrFail();
         
-        $products = Product::active()->inStock()
-            ->where('vendor_id', $vendor->id)
-            ->with('category')
-            ->paginate(12);
+        $cards = \App\Support\ProductCards::with(Product::active()->inStock()->where('vendor_id', $vendor->id))->paginate(12);
 
-        return view('shop.vendor', compact('vendor', 'products'));
+        return \Inertia\Inertia::render('Storefront/Vendor', [
+            'vendor' => [
+                'name' => $vendor->store_name,
+                'description' => \Illuminate\Support\Str::limit((string) $vendor->description, 200),
+                'logo' => $vendor->logo_url,
+                'banner' => $vendor->banner ? asset('storage/' . $vendor->banner) : null,
+                'rating' => round((float) $vendor->average_rating, 1),
+                'ratingCount' => (int) $vendor->rating_count,
+                'location' => collect([$vendor->city, $vendor->country])->filter()->implode(', '),
+                // only real web links
+                'social' => collect(['facebook', 'twitter', 'instagram'])
+                    ->mapWithKeys(fn ($k) => [$k => trim((string) ($vendor->social_links[$k] ?? ''))])
+                    ->filter(fn ($url) => preg_match('#^https?://#i', $url)),
+            ],
+            'products' => $cards->through(fn ($p) => \App\Support\ProductCards::card($p)),
+            'seo' => [
+                'title' => $vendor->store_name,
+                'description' => \Illuminate\Support\Str::limit((string) $vendor->description, 155),
+                'image' => $vendor->logo_url,
+                'canonical' => route('shop.vendor', $vendor->slug),
+            ],
+        ]);
     }
 
     public function storeReview(Request $request, Product $product)

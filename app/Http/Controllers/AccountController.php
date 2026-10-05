@@ -16,13 +16,13 @@ class AccountController extends Controller
         $orderCount = $user->orders()->count();
         $wishlistCount = $user->wishlist()->count();
 
-        return view('account.dashboard', compact('user', 'recentOrders', 'orderCount', 'wishlistCount'));
+        return \Inertia\Inertia::render('Storefront/Account/Dashboard', \App\Support\AccountPage::dashboard($user, $recentOrders, $orderCount, $wishlistCount));
     }
 
     public function orders()
     {
-        $orders = auth()->user()->orders()->with('items')->latest()->paginate(10);
-        return view('account.orders', compact('orders'));
+        $orders = auth()->user()->orders()->with('items.product')->latest()->paginate(10);
+        return \Inertia\Inertia::render('Storefront/Account/Orders', \App\Support\AccountPage::orders($orders));
     }
 
     public function orderDetail(Order $order)
@@ -31,14 +31,14 @@ class AccountController extends Controller
             abort(403);
         }
         
-        $order->load(['items.product', 'items.variation']);
-        return view('account.order-detail', compact('order'));
+        $order->load(['items.product', 'items.variation', 'driver', 'pickupLocation']);
+        return \Inertia\Inertia::render('Storefront/Account/OrderDetail', \App\Support\AccountPage::orderDetail($order));
     }
 
     public function profile()
     {
         $user = auth()->user();
-        return view('account.profile', compact('user'));
+        return \Inertia\Inertia::render('Storefront/Account/Profile', \App\Support\AccountPage::profile($user));
     }
 
     public function updateProfile(Request $request)
@@ -69,7 +69,7 @@ class AccountController extends Controller
 
     public function changePassword()
     {
-        return view('account.change-password');
+        return \Inertia\Inertia::render('Storefront/Account/Password', ['seo' => \App\Support\AccountPage::seo('Change Password')]);
     }
 
     public function updatePassword(Request $request)
@@ -93,7 +93,7 @@ class AccountController extends Controller
     public function wishlist()
     {
         $wishlist = auth()->user()->wishlist()->with('product.translations')->paginate(12);
-        return view('account.wishlist', compact('wishlist'));
+        return \Inertia\Inertia::render('Storefront/Account/Wishlist', \App\Support\AccountPage::wishlist($wishlist));
     }
 
     public function addToWishlist(Request $request)
@@ -107,7 +107,9 @@ class AccountController extends Controller
             ->exists();
 
         if ($exists) {
-            return back()->with('info', 'Product is already in your wishlist.');
+            return $request->wantsJson()
+                ? response()->json(['success' => true, 'message' => 'Product is already in your wishlist.'])
+                : back()->with('info', 'Product is already in your wishlist.');
         }
 
         Wishlist::create([
@@ -115,7 +117,9 @@ class AccountController extends Controller
             'product_id' => $request->product_id,
         ]);
 
-        return back()->with('success', 'Product added to wishlist!');
+        return $request->wantsJson()
+            ? response()->json(['success' => true, 'message' => 'Product added to wishlist!'])
+            : back()->with('success', 'Product added to wishlist!');
     }
 
     public function removeFromWishlist(Request $request)
@@ -127,6 +131,10 @@ class AccountController extends Controller
         Wishlist::where('user_id', auth()->id())
             ->where('product_id', $request->product_id)
             ->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Product removed from wishlist!']);
+        }
 
         return back()->with('success', 'Product removed from wishlist!');
     }
@@ -147,7 +155,44 @@ class AccountController extends Controller
         }
 
         $order->load(['user', 'items.product', 'items.variation']);
-        return view('account.invoice', compact('order'));
+
+        return \Inertia\Inertia::render('Storefront/Account/Invoice', [
+            'store' => array_filter([
+                'name' => setting('store.name', 'Shop'),
+                'address' => setting('store.address'),
+                'email' => setting('store.email'),
+                'phone' => setting('store.phone'),
+            ]),
+            'invoice' => [
+                'number' => $order->order_number,
+                'date' => $order->created_at?->format('M d, Y'),
+                'billTo' => ['name' => $order->user?->name, 'email' => $order->user?->email],
+                'shipTo' => [
+                    'name' => $order->shipping_name,
+                    'lines' => array_values(array_filter([$order->shipping_address, trim("{$order->shipping_city}, {$order->shipping_state} {$order->shipping_zip}", ' ,'), $order->shipping_country])),
+                ],
+                'items' => $order->items->map(fn ($i) => [
+                    'id' => $i->id,
+                    'name' => $i->product_name,
+                    'options' => collect(is_array($i->variation_options) ? $i->variation_options : [])->map(fn ($v, $k) => "{$k}: {$v}")->values(),
+                    'sku' => $i->variation?->sku ?: $i->product?->sku,
+                    'quantity' => (int) $i->quantity,
+                    'price' => format_currency($i->price),
+                    'total' => format_currency($i->total),
+                ])->values(),
+                'totals' => [
+                    'subtotal' => format_currency($order->subtotal),
+                    'discount' => $order->discount > 0 ? format_currency($order->discount) : null,
+                    'shipping' => format_currency($order->shipping_cost),
+                    'tax' => format_currency($order->tax),
+                    'total' => format_currency($order->total),
+                ],
+                'paymentMethod' => ucfirst(str_replace('_', ' ', (string) $order->payment_method)),
+                'transactionId' => $order->transaction_id,
+                'printUrl' => route('account.orders.invoice.print', $order),
+            ],
+            'seo' => \App\Support\AccountPage::seo('Invoice ' . $order->order_number),
+        ]);
     }
 
     /**

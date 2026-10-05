@@ -36,47 +36,40 @@ The slug may only contain letters, numbers, `-` and `_`.
 - **hide**: customizer fields that do nothing in your theme, for example `footer_style` when the theme ships its own footer.
 - **sections**: extra customizer sections, in the same shape as `baseSections()`: `id`, `title`, and `fields` with `key`, `label`, `type` and `default`. Values are available to templates as `setting('theme.<key>')`.
 
-Customizer values are saved per theme, so switching themes never loses them. When a theme is rendered, its values override the store-wide `theme.*` settings. Because of that, any template that reads `setting('theme.xyz')` or `$appSettings['theme'][...]` follows the active theme automatically.
+Customizer values are saved per theme, so switching themes never loses them. When a theme is rendered, its values override the store-wide `theme.*` settings, and the storefront receives them in the shared `sf.theme.options` page prop.
 
-## 3. Override templates
+## 3. Style the theme
 
-Any storefront view can be replaced by putting a file with the same path inside the theme folder. The theme's file wins and everything else falls back to the shared view. The admin area is never themed.
+The storefront is a React (Inertia) app: pages in `resources/js/Pages/Storefront`, shared parts in `resources/js/Storefront`. Every theme renders the same pages. A theme changes their look in two ways.
 
-Most pages are built from small shared **blocks**. A theme usually rearranges the blocks in its own page layout and adds a `<style>` block, rather than copying the blocks. Copy a block only when its markup itself must change.
+**CSS skin (most themes need only this).** The page wrapper carries the class `sf-theme-<slug>`. Add your rules to `resources/css/storefront-themes.css`, scoped to that class, like the bundled `modern` and `starter` skins:
 
-| Page | Theme page layout | Shared blocks you can include or replace |
-|---|---|---|
-| Header / footer | `partials/header.blade.php`, `partials/footer.blade.php` | `partials/header/base` (the full header); footer data from `App\View\StoreFooter::data($appSettings ?? [])` |
-| Homepage | `home/partials/skin.blade.php` (styles) | `home/sections/*` (hero, features, categories, featured, flash_deals, top_rated, two_column_banners, promo, arrivals, blog, newsletter) |
-| Product card | `components/product-card.blade.php` | |
-| Shop | `shop/index.blade.php` | `shop/listing/*` (styles, hero, active-filters, mobile-filters, sidebar, sort-bar, products); wrap them in `<x-shop-state>` |
-| Category | `shop/category.blade.php` | `shop/category-page/*` (breadcrumb, banner, products, other-categories) |
-| Product | `shop/show.blade.php` | `shop/product/*` (breadcrumb, gallery, info, tabs, reviews, cross-sell, related, mobile-bar). Always include `mobile-bar`, because it carries the page scripts. |
-| Cart | `cart/index.blade.php` | `cart/blocks/*` (items, actions, cross-sell, summary, empty) |
-| Checkout | `checkout/index.blade.php`, `checkout/success.blade.php` | `checkout/blocks/*`, see the note below |
-| Account | `layouts/account.blade.php`, `account/partials/skin.blade.php` | pages fill `account_heading` / `account_content` |
-| Login / register | `layouts/auth.blade.php`, `auth/partials/skin.blade.php` | pages fill `auth_card` |
-| Blog | `blog/index.blade.php`, `blog/show.blade.php` | `blog/blocks/*`, `blog/post/*` |
-| About, contact, CMS pages | `pages/partials/skin.blade.php` (styles) | |
+```css
+.sf-theme-mytheme .sf-card { border-radius: 0; }
+.sf-theme-mytheme main .shadow-sm { box-shadow: none; }
+```
 
-**Checkout must keep its working parts.** A checkout layout has to keep these, or checkout stops working:
+Useful hooks: `sf-header`, `sf-nav-link` / `sf-nav-active`, `sf-footer`, `sf-card` (with `sf-card-media`, `sf-card-badge`, `sf-card-sale`, `sf-card-actions`, `sf-card-actions-row`, `sf-card-price`, `sf-card-cta`), `sf-features`, `sf-shop-hero`, and the page wrappers `product-page`, `account-page`, `auth-page`, `content-page`. Run `npm run build` afterwards.
 
-- the root `x-data="checkoutForm()"`;
-- one `<form action="{{ route('checkout.process') }}" method="POST" x-ref="checkoutForm">` with `@csrf`, wrapped around `shipping-info`, `delivery`, `payment`, `notes` and `summary`;
-- `@include('checkout.blocks.scripts')` after the form.
+**Component overrides (when the markup must change).** Register a replacement in `resources/js/Storefront/theme/registry.js`:
 
-Never edit field names in the blocks.
+```js
+import MyCard from './mytheme/ProductCard';
+export const overrides = { mytheme: { ProductCard: MyCard } };
+```
 
-**Print stored HTML safely.** When a theme template prints HTML that admins, editors or vendors wrote (blog posts, CMS pages, product descriptions), always use `{!! safe_html($html) !!}`, never raw `{!! $html !!}`. `safe_html()` keeps formatting such as headings, lists, links, images, tables and the class attribute. It strips scripts, iframes, inline styles, event handlers and `javascript:` links. Everything else should use normal escaped output: `{{ $value }}`.
+Components look up their themed version by name with `useThemed(name, Base)`. Overridable names include `Header`, `Footer`, `ProductCard`, `Product.Gallery` / `Product.Info` / `Product.Tabs` / `Product.Reviews`, `Cart.Items` / `Cart.Summary`, `Checkout.ShippingInfo` / `Checkout.Payment` / `Checkout.Summary`, `Account.Nav`, `Auth.Card`, `Blog.PostCard`, `Vendor.Banner`. A replacement receives the same props as the component it replaces.
 
-**Respect switched-off modules.** Wrap any markup that belongs to an optional module in `@module('<key>') … @endmodule`, for example `@module('wishlist')` around a wishlist button. That way it disappears when the module is switched off in **Admin › Modules**. The keys are listed in `App\Support\Modules::all()`: `reviews`, `wishlist`, `compare`, `newsletter`, `blog`, `digital_products`, `multi_vendor`, `driver_portal`, `ai_chat`, and the rest. The module's own pages and form endpoints already return 404 when it is off.
+**Print stored HTML safely.** HTML written by admins, editors or vendors (blog posts, CMS pages, product descriptions) must be sanitised on the server with `safe_html()` (or `safe_page_html()` for CMS pages) before it is sent as a prop; only then may a component render it with `dangerouslySetInnerHTML`. Everything else is plain text, which React escapes.
 
-## 4. Style with the theme's colours
+**Respect switched-off modules.** Optional features come with flags in the shared `sf.features` prop (`wishlist`, `newsletter`, `reviews`, `blog`, `multiVendor`, ...). Hide the related markup when a flag is off. The module's own pages and endpoints already return 404 when it is off.
 
-Templates can use the CSS variables set from the customizer: `--color-primary`, `--color-secondary`, `--color-accent`, `--font-family`, `--font-heading` and `--border-radius`. The Tailwind `primary-*` colours also follow the theme's primary colour.
+## 4. Theme colours
+
+`App\View\StoreTheme` writes the customizer values as CSS variables: `--sf-primary-50` ... `--sf-primary-900`, `--sf-accent-*`, `--sf-font`, `--sf-heading-font`, `--sf-radius`, `--sf-button-radius`. The Tailwind `primary-*` and `accent-*` colours and the `sf-btn` class follow them.
 
 ## 5. Check it
 
 1. Open **Admin › Themes**, then choose **Preview** on your theme. Only you see it, and a bar at the bottom lets you exit.
-2. Go through: home, shop, a category, a product with and without variations, the cart, checkout, the account pages, login, the blog, and a CMS page.
+2. Go through: home, shop, a category, a product with and without variations, the cart, checkout, the account pages, login, the blog, a CMS page and a vendor store page.
 3. Use **Customize** to try the settings, then **Activate** when ready.

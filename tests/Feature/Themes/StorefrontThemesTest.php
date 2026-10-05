@@ -1,20 +1,15 @@
 <?php
 
 /*
- * Every storefront page renders under every theme with that theme's own layout, and only that theme's.
- * Markers are class names / CSS that exist only in one theme's templates.
+ * Every storefront page renders as a React page under every theme. The page carries the active theme's slug
+ * (StoreLayout puts "sf-theme-<slug>" on the page; resources/css/storefront-themes.css styles each theme).
  */
 
-use App\Models\{BlogPost, Category, HelpdeskTicket, Page, Product, Setting, Vendor};
+use App\Models\{BlogPost, Category, HelpdeskTicket, Page, Product, Vendor};
 use App\Services\ThemeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
-
-const THEME_MARKERS = [
-    'modern' => ['product-page--modern', 'shop-page--modern', 'category-page--modern', 'cart-page--modern', 'checkout-page--modern', 'account-page--modern', 'auth-page--modern', 'blog-page--modern', 'blog-post--modern', 'vendor-page--modern'],
-    'starter' => ['product-page--starter', 'shop-page--starter', 'category-page--starter', 'cart-page--starter', 'checkout-page--starter', 'account-page--starter', 'auth-page--starter', 'blog-page--starter', 'blog-post--starter', 'vendor-page--starter'],
-];
 
 beforeEach(function () {
     module('blog', true);
@@ -30,25 +25,25 @@ beforeEach(function () {
 });
 
 dataset('pages', [
-    'home' => ['/', null, null],
-    'shop' => ['/shop', 'shop-page', null],
-    'category' => ['category', 'category-page', null],
-    'product' => ['product', 'product-page', null],
-    'cart' => ['/cart', 'cart-page', 'customer'],
-    'checkout' => ['/checkout', 'checkout-page', 'customer'],
-    'account' => ['/account', 'account-page', 'customer'],
-    'login' => ['/login', 'auth-page', null],
-    'blog' => ['/blog', 'blog-page', null],
-    'blog post' => ['post', 'blog-post', null],
-    'about' => ['/about', null, null],
-    'contact' => ['/contact', null, null],
-    'vendor store' => ['/shop/vendor/zz-seller', 'vendor-page', null],
-    'helpdesk' => ['/helpdesk', 'account-page', 'customer'],
-    'new ticket' => ['/helpdesk/create', 'account-page', 'customer'],
-    'ticket' => ['ticket', 'account-page', 'customer'],
+    'home' => ['/', 'Storefront/Home', null],
+    'shop' => ['/shop', 'Storefront/Shop', null],
+    'category' => ['category', 'Storefront/Category', null],
+    'product' => ['product', 'Storefront/Product', null],
+    'cart' => ['/cart', 'Storefront/Cart', 'customer'],
+    'checkout' => ['/checkout', 'Storefront/Checkout', 'customer'],
+    'account' => ['/account', 'Storefront/Account/Dashboard', 'customer'],
+    'login' => ['/login', 'Storefront/Auth/Login', null],
+    'blog' => ['/blog', 'Storefront/Blog/Index', null],
+    'blog post' => ['post', 'Storefront/Blog/Show', null],
+    'about' => ['/about', 'Storefront/Page', null],
+    'contact' => ['/contact', 'Storefront/Page', null],
+    'vendor store' => ['/shop/vendor/zz-seller', 'Storefront/Vendor', null],
+    'helpdesk' => ['/helpdesk', 'Storefront/Helpdesk/Index', 'customer'],
+    'new ticket' => ['/helpdesk/create', 'Storefront/Helpdesk/Create', 'customer'],
+    'ticket' => ['ticket', 'Storefront/Helpdesk/Show', 'customer'],
 ]);
 
-test('renders under every theme with its own layout only', function (string $uri, ?string $marker, ?string $as, string $theme) {
+test('renders under every theme', function (string $uri, string $component, ?string $as, string $theme) {
     app(ThemeService::class)->setActive($theme);
     $uri = match ($uri) {
         'category' => "/shop/category/{$this->category->slug}",
@@ -67,34 +62,24 @@ test('renders under every theme with its own layout only', function (string $uri
         }
     }
 
-    $html = $this->get($uri)->assertOk()->getContent();
-
-    expect(substr_count($html, 'x-data="{ mobileMenu: false'))->toBe(1) // exactly one site header
-        ->and($html)->toContain('store-footer');
-    if ($marker && $theme !== 'default') {
-        expect($html)->toContain("$marker--$theme");
-    }
-    foreach (THEME_MARKERS as $other => $markers) {
-        if ($other === $theme) continue;
-        foreach ($markers as $m) {
-            expect($html)->not->toContain($m);
-        }
-    }
+    // the HTML shell (theme colours, fonts) ...
+    expect($this->get($uri)->assertOk()->getContent())->toContain('data-page="app"')->toContain('--sf-primary-500');
+    // ... and the page itself, which knows its theme
+    $this->inertia('GET', $uri)->assertOk()
+        ->assertJsonPath('component', $component)
+        ->assertJsonPath('props.sf.theme.slug', $theme);
 })->with('pages')->with(['default', 'modern', 'starter']);
 
-test('the product card is themed on listing pages', function () {
-    app(ThemeService::class)->setActive('modern');
-    $this->get('/shop')->assertOk()->assertSee('rounded-3xl shadow-sm hover:shadow-xl', false);
-
-    app(ThemeService::class)->setActive('starter');
-    Setting::overlay([]);
-    $this->get('/shop')->assertOk()->assertSee('rounded-none transition-colors duration-200', false);
+test('every bundled theme has a skin in the storefront stylesheet', function () {
+    $css = file_get_contents(resource_path('css/storefront-themes.css'));
+    expect($css)->toContain('.sf-theme-modern .sf-card')->toContain('.sf-theme-starter .sf-card')
+        ->and(file_get_contents(resource_path('css/storefront.css')))->toContain('@import "./storefront-themes.css"');
 });
 
-test('the vendor store page shows the store and only safe social links', function (string $theme) {
-    app(ThemeService::class)->setActive($theme);
-    $this->get('/shop/vendor/zz-seller')->assertOk()
-        ->assertSee('Zz Seller')->assertSee('Hand-made things')
-        ->assertSee('https://facebook.com/zz', false)
-        ->assertDontSee('javascript:alert(1)', false);
-})->with(['default', 'modern', 'starter']);
+test('the vendor store page shows the store and only safe social links', function () {
+    $vendor = $this->inertia('GET', '/shop/vendor/zz-seller')->assertOk()->json('props.vendor');
+
+    expect($vendor['name'])->toBe('Zz Seller')
+        ->and($vendor['description'])->toBe('Hand-made things')
+        ->and($vendor['social'])->toBe(['facebook' => 'https://facebook.com/zz']);
+});
